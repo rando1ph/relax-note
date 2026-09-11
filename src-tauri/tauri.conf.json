@@ -12,9 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "relax-note",
-        "width": 800,
-        "height": 600
+        "title": "Relax Note",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 560
       }
     ],
     "security": {
