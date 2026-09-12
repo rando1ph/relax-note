@@ -31,6 +31,13 @@ export function useKeyboard(commandsRef: MutableRefObject<AppCommands>) {
           e.preventDefault();
           c.lastPage();
           break;
+        case "H":
+        case "h":
+          if (e.ctrlKey && e.shiftKey) {
+            e.preventDefault();
+            c.highlightSelection();
+          }
+          break;
         default:
           break;
       }

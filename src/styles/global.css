@@ -433,3 +433,178 @@ body,
   font-size: 12px;
   color: var(--muted);
 }
+
+/* ---------------- Annotations (right sidebar) ---------------- */
+
+.annotations-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.annotation-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  flex-shrink: 1;
+  min-height: 0;
+}
+
+.annotation-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  padding: 6px 8px;
+  font: inherit;
+  color: inherit;
+}
+
+.annotation-item:hover {
+  background-color: rgba(127, 127, 127, 0.12);
+}
+
+.annotation-item.selected {
+  background-color: rgba(59, 130, 246, 0.14);
+  border-left-color: var(--accent);
+}
+
+.annotation-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.annotation-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.annotation-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.annotation-meta {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.annotation-inspector {
+  border-top: 1px solid var(--border);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: auto;
+  flex-shrink: 0;
+  max-height: 45%;
+}
+
+.inspector-source {
+  font-size: 13px;
+  color: var(--muted);
+  max-height: 96px;
+  overflow: auto;
+  white-space: pre-wrap;
+  border-left: 3px solid var(--border);
+  padding-left: 8px;
+}
+
+.inspector-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.inspector-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.inspector-input {
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+}
+
+.inspector-note {
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  resize: vertical;
+  min-height: 72px;
+}
+
+.color-palette {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+
+.color-swatch {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: var(--swatch-color, transparent);
+  cursor: pointer;
+}
+
+.color-swatch:hover {
+  box-shadow: 0 0 0 2px rgba(127, 127, 127, 0.35);
+}
+
+.color-swatch.selected {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.color-swatch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.color-swatch-check {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.inspector-delete {
+  align-self: flex-start;
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 12px;
+  cursor: pointer;
+  border: 1px solid rgba(180, 0, 0, 0.4);
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+}
+
+.inspector-delete:hover {
+  background-color: rgba(180, 0, 0, 0.08);
+}

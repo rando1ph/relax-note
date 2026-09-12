@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent, KeyboardEvent, RefObject } from "react";
 
 interface ReaderToolbarProps {
@@ -38,12 +38,56 @@ export function ReaderToolbar({
   onFitPage,
   onFitWidth,
 }: ReaderToolbarProps) {
-  const [pageInput, setPageInput] = useState<string>("");
+  // Local draft string so the field behaves like a normal editable input:
+  // an empty draft stays empty while editing and is never force-repopulated.
+  const [pageDraft, setPageDraft] = useState<string>(String(currentPage));
+  const [isEditingPage, setIsEditingPage] = useState(false);
+  const cancelCommitRef = useRef(false);
+
+  // Sync from the external current page only while the user is not editing.
+  useEffect(() => {
+    if (!isEditingPage) setPageDraft(String(currentPage));
+  }, [currentPage, isEditingPage]);
 
   const commitPage = () => {
-    const parsed = Number.parseInt(pageInput, 10);
-    if (Number.isFinite(parsed)) onGoToPage(parsed);
-    setPageInput("");
+    const trimmed = pageDraft.trim();
+    if (trimmed === "") {
+      setPageDraft(String(currentPage));
+      return;
+    }
+    const parsed = Number(trimmed);
+    if (!Number.isInteger(parsed)) {
+      setPageDraft(String(currentPage));
+      return;
+    }
+    const clamped = Math.min(Math.max(1, parsed), pageCount);
+    onGoToPage(clamped);
+    setPageDraft(String(clamped));
+  };
+
+  const onPageBlur = () => {
+    setIsEditingPage(false);
+    if (cancelCommitRef.current) {
+      cancelCommitRef.current = false;
+      setPageDraft(String(currentPage));
+      return;
+    }
+    commitPage();
+  };
+
+  const onPageKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      // Blurring commits via onPageBlur, so the field leaves edit mode and
+      // resumes syncing with external page changes.
+      e.currentTarget.blur();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      cancelCommitRef.current = true;
+      setIsEditingPage(false);
+      setPageDraft(String(currentPage));
+      e.currentTarget.blur();
+    }
   };
 
   const onZoomSelect = (value: string) => {
@@ -72,13 +116,11 @@ export function ReaderToolbar({
         ref={pageInputRef}
         className="page-input"
         inputMode="numeric"
-        value={pageInput || String(currentPage)}
-        onChange={(e: ChangeEvent<HTMLInputElement>) => setPageInput(e.currentTarget.value)}
-        onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
-          if (e.key === "Enter") commitPage();
-        }}
-        onFocus={() => setPageInput(String(currentPage))}
-        onBlur={commitPage}
+        value={pageDraft}
+        onChange={(e: ChangeEvent<HTMLInputElement>) => setPageDraft(e.currentTarget.value)}
+        onFocus={() => setIsEditingPage(true)}
+        onKeyDown={onPageKeyDown}
+        onBlur={onPageBlur}
         aria-label="Current page"
       />
       <span className="page-total">/ {pageCount}</span>

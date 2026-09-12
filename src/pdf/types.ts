@@ -45,9 +45,3 @@ export interface PageGeometry {
   width: number;
   height: number;
 }
-
-/**
- * Reserved for M2. Vocabulary is a specialization of the general annotation
- * type, not a separate storage system.
- */
-export type AnnotationType = "note" | "vocabulary";

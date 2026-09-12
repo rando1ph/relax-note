@@ -48,6 +48,42 @@ pub fn run() {
             sql: "ALTER TABLE documents ADD COLUMN scroll_offset REAL;",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 7,
+            description: "create_annotations_table",
+            sql: "CREATE TABLE IF NOT EXISTS annotations (
+                id TEXT PRIMARY KEY,
+                document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+                type TEXT NOT NULL DEFAULT 'highlight',
+                color TEXT NOT NULL DEFAULT '#ffd400',
+                source_text TEXT NOT NULL DEFAULT '',
+                title TEXT,
+                note TEXT NOT NULL DEFAULT '',
+                is_complete INTEGER NOT NULL DEFAULT 0 CHECK (is_complete IN (0, 1)),
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_annotations_document ON annotations(document_id);",
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 8,
+            description: "create_annotation_rects_table",
+            sql: "CREATE TABLE IF NOT EXISTS annotation_rects (
+                id TEXT PRIMARY KEY,
+                annotation_id TEXT NOT NULL REFERENCES annotations(id) ON DELETE CASCADE,
+                page_number INTEGER NOT NULL CHECK (page_number >= 1),
+                seq INTEGER NOT NULL,
+                x REAL NOT NULL,
+                y REAL NOT NULL,
+                width REAL NOT NULL CHECK (width > 0),
+                height REAL NOT NULL CHECK (height > 0),
+                UNIQUE (annotation_id, seq)
+            );
+            CREATE INDEX IF NOT EXISTS idx_annotation_rects_annotation ON annotation_rects(annotation_id);
+            CREATE INDEX IF NOT EXISTS idx_annotation_rects_page ON annotation_rects(page_number);",
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()
