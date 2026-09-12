@@ -4,25 +4,32 @@ import {
   useEffect,
   useImperativeHandle,
   useRef,
+  useState,
 } from "react";
-import { EventBus, PDFViewer, ScrollMode } from "pdfjs-dist/web/pdf_viewer.mjs";
+import {
+  EventBus,
+  PDFViewer,
+  RenderingStates,
+  ScrollMode,
+} from "pdfjs-dist/web/pdf_viewer.mjs";
 import "pdfjs-dist/web/pdf_viewer.css";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { RelaxLinkService } from "../pdf/linkService";
-import { attachPageOverlay } from "./overlay";
-import type { PageOverlay } from "./overlay";
+import { normalizedRectToViewport } from "../pdf/coordinates";
+import type { NormalizedRect } from "../pdf/types";
+import type { SelectionSnapshot } from "../annotations/selection";
+import { captureSelection } from "../annotations/selection";
+import { createAnnotationOverlay, getPageView } from "./annotationOverlay";
+import type { AnnotationOverlayController } from "./annotationOverlay";
 import type { ViewerHandle, ViewerProps } from "./types";
 
 export type { ViewerHandle, ViewerProps };
 
 /**
  * Relax Note's production PDF reader, built on the official PDF.js viewer
- * layer (pdfjs-dist@6.3.289). Paged-only: one logical page at a time via
- * `ScrollMode.PAGE`. Zoom, text selection, native links, page buffering and
- * deep-page navigation are all official `PDFViewer`/`PDFPageView` behavior.
- *
- * The only Relax Note-specific code here is the link-service subclass, the
- * external-link opener interceptor, and the (empty) annotation-overlay seam.
+ * layer (pdfjs-dist@6.3.289). Paged-only. Annotation overlays are Relax
+ * Note-owned and rendered by an imperative overlay controller that survives
+ * `PDFPageView.reset()` via the official `pagerendered`/`updateviewarea` seams.
  */
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(Math.max(lo, n), hi);
@@ -36,6 +43,10 @@ export const PdfViewer = forwardRef<ViewerHandle, ViewerProps>(function PdfViewe
     needsAutoFit,
     onScaleChange,
     onCurrentPageChange,
+    annotationsByPage,
+    selectedAnnotationId,
+    onSelectAnnotation,
+    onCreateHighlight,
   },
   ref,
 ) {
@@ -44,6 +55,7 @@ export const PdfViewer = forwardRef<ViewerHandle, ViewerProps>(function PdfViewe
   const viewerElRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<PDFViewer | null>(null);
   const readyRef = useRef(false);
+  const overlayRef = useRef<AnnotationOverlayController | null>(null);
 
   const onScaleChangeRef = useRef(onScaleChange);
   const onCurrentPageChangeRef = useRef(onCurrentPageChange);
@@ -56,10 +68,26 @@ export const PdfViewer = forwardRef<ViewerHandle, ViewerProps>(function PdfViewe
   needsAutoFitRef.current = needsAutoFit;
   scaleRef.current = scale;
 
+  const annotationsByPageRef = useRef(annotationsByPage);
+  const selectedAnnotationIdRef = useRef(selectedAnnotationId);
+  const onSelectAnnotationRef = useRef(onSelectAnnotation);
+  const onCreateHighlightRef = useRef(onCreateHighlight);
+  annotationsByPageRef.current = annotationsByPage;
+  selectedAnnotationIdRef.current = selectedAnnotationId;
+  onSelectAnnotationRef.current = onSelectAnnotation;
+  onCreateHighlightRef.current = onCreateHighlight;
+
+  // Ephemeral selection snapshot + floating action position.
+  const [snapshot, setSnapshot] = useState<SelectionSnapshot | null>(null);
+  const [button, setButton] = useState<{ left: number; top: number } | null>(null);
+  const snapshotRef = useRef<SelectionSnapshot | null>(null);
+  snapshotRef.current = snapshot;
+
   useEffect(() => {
     const container = containerRef.current;
     const viewerEl = viewerElRef.current;
-    if (!container || !viewerEl) return;
+    const rootEl = rootRef.current;
+    if (!container || !viewerEl || !rootEl) return;
 
     const eventBus = new EventBus();
     const linkService = new RelaxLinkService({ eventBus });
@@ -86,17 +114,10 @@ export const PdfViewer = forwardRef<ViewerHandle, ViewerProps>(function PdfViewe
       { signal },
     );
 
-    let overlay: PageOverlay | null = null;
-    const moveOverlayTo = (page: number) => {
-      overlay?.detach();
-      overlay = attachPageOverlay(viewer, eventBus, page);
-    };
-
     eventBus.on(
       "pagechanging",
       (evt: { pageNumber: number }) => {
         onCurrentPageChangeRef.current(evt.pageNumber);
-        moveOverlayTo(evt.pageNumber);
       },
       { signal },
     );
@@ -108,6 +129,54 @@ export const PdfViewer = forwardRef<ViewerHandle, ViewerProps>(function PdfViewe
       },
       { signal },
     );
+
+    // --- annotation overlay (imperative) ---------------------------------
+    overlayRef.current = createAnnotationOverlay({
+      viewer,
+      eventBus,
+      container,
+      root: rootEl,
+      onSelect: (id) => onSelectAnnotationRef.current(id),
+      signal,
+    });
+    overlayRef.current.setData(
+      annotationsByPageRef.current,
+      selectedAnnotationIdRef.current,
+    );
+
+    // --- selection snapshot lifecycle ------------------------------------
+    // Captures geometry immediately when a PDF text selection completes, so
+    // interacting with the floating button (which can collapse the Selection)
+    // never loses it. `pointerdown` on the button is prevented to keep the
+    // selection alive until the click consumes the snapshot.
+    let raf = 0;
+    const onSelectionChange = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const selection = window.getSelection();
+        const snap = captureSelection((p) => getPageView(viewer, p), selection);
+        if (snap) {
+          snapshotRef.current = snap;
+          setSnapshot(snap);
+          const range = selection?.getRangeAt(0);
+          const rects = range?.getClientRects() ?? ([] as unknown as DOMRectList);
+          const last = rects[rects.length - 1];
+          const root = rootRef.current;
+          if (last && root) {
+            const r = root.getBoundingClientRect();
+            setButton({ left: last.right - r.left, top: last.bottom - r.top });
+          } else {
+            setButton(null);
+          }
+        } else {
+          snapshotRef.current = null;
+          setSnapshot(null);
+          setButton(null);
+        }
+      });
+    };
+    document.addEventListener("selectionchange", onSelectionChange);
 
     // --- external links -> Tauri opener (webview must never navigate) ----
     const onClick = (e: MouseEvent) => {
@@ -126,8 +195,6 @@ export const PdfViewer = forwardRef<ViewerHandle, ViewerProps>(function PdfViewe
     viewer.currentScaleValue = String(scaleRef.current);
     viewer.setDocument(pdfDocument);
 
-    // Page views are created asynchronously inside setDocument; everything
-    // that touches getPageView()/page navigation waits for "pagesinit".
     eventBus.on(
       "pagesinit",
       () => {
@@ -139,13 +206,16 @@ export const PdfViewer = forwardRef<ViewerHandle, ViewerProps>(function PdfViewe
         if (needsAutoFitRef.current) {
           viewer.currentScaleValue = "page-fit";
         }
-        moveOverlayTo(viewer.currentPageNumber);
+        overlayRef.current?.redrawAll();
       },
       { signal },
     );
 
     return () => {
-      overlay?.detach();
+      overlayRef.current?.dispose();
+      overlayRef.current = null;
+      document.removeEventListener("selectionchange", onSelectionChange);
+      if (raf) cancelAnimationFrame(raf);
       container.removeEventListener("click", onClick, true);
       ac.abort();
       // Runtime accepts null (destroys the view); the d.ts is too narrow.
@@ -154,9 +224,13 @@ export const PdfViewer = forwardRef<ViewerHandle, ViewerProps>(function PdfViewe
       viewerEl.replaceChildren();
     };
     // Deliberately NOT keyed on `scale`/`currentPage`: those are handled by
-    // dedicated effects below. Including them rebuilds the whole viewer on
-    // every zoom step / page change.
+    // dedicated effects below. Annotation data is pushed via the ref/effect.
   }, [pdfDocument, pageCount]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Push annotation data to the imperative overlay when it changes.
+  useEffect(() => {
+    overlayRef.current?.setData(annotationsByPage, selectedAnnotationId);
+  }, [annotationsByPage, selectedAnnotationId]);
 
   // External page navigation (toolbar input, outline, thumbnails, PageUp/Down).
   useEffect(() => {
@@ -186,6 +260,69 @@ export const PdfViewer = forwardRef<ViewerHandle, ViewerProps>(function PdfViewe
     [],
   );
 
+  const consumeHighlight = useCallback(() => {
+    const snap = snapshotRef.current;
+    if (!snap) return;
+    onCreateHighlightRef.current(snap);
+    window.getSelection()?.removeAllRanges();
+    snapshotRef.current = null;
+    setSnapshot(null);
+    setButton(null);
+  }, []);
+
+  const highlightSelection = useCallback((): boolean => {
+    const viewer = viewerRef.current;
+    const snap =
+      snapshotRef.current ??
+      (viewer ? captureSelection((p) => getPageView(viewer, p)) : null);
+    if (!snap) return false;
+    onCreateHighlightRef.current(snap);
+    window.getSelection()?.removeAllRanges();
+    snapshotRef.current = null;
+    setSnapshot(null);
+    setButton(null);
+    return true;
+  }, []);
+
+  const scrollToSegment = useCallback((pageNumber: number, rect: NormalizedRect) => {
+    const viewer = viewerRef.current;
+    if (!viewer || !viewer.pdfDocument) return;
+
+    const doScroll = () => {
+      const pageView = getPageView(viewer, pageNumber);
+      if (!pageView) return;
+      const vp = normalizedRectToViewport(pageView.viewport, rect);
+      const [xPdf, yPdf] = pageView.viewport.convertToPdfPoint(vp.left, vp.top);
+      viewer.scrollPageIntoView({
+        pageNumber,
+        destArray: [null, { name: "XYZ" }, xPdf, yPdf, null],
+        ignoreDestinationZoom: true,
+        center: "vertical",
+      });
+    };
+
+    if (viewer.currentPageNumber !== pageNumber) {
+      viewer.currentPageNumber = pageNumber;
+    }
+
+    const raw = viewer.getPageView(pageNumber - 1) as
+      | { pdfPage?: unknown; renderingState?: number }
+      | null;
+    if (raw?.pdfPage && raw.renderingState === RenderingStates.FINISHED) {
+      doScroll();
+      return;
+    }
+
+    const handler = (evt: { pageNumber?: number }) => {
+      if (evt.pageNumber === pageNumber) {
+        viewer.eventBus.off("pagerendered", handler);
+        doScroll();
+      }
+    };
+    viewer.eventBus.on("pagerendered", handler);
+    window.setTimeout(() => viewer.eventBus.off("pagerendered", handler), 5000);
+  }, []);
+
   useImperativeHandle(
     ref,
     () => ({
@@ -204,8 +341,10 @@ export const PdfViewer = forwardRef<ViewerHandle, ViewerProps>(function PdfViewe
         const viewer = viewerRef.current;
         if (viewer?.pdfDocument) viewer.currentScaleValue = "page-width";
       },
+      highlightSelection,
+      scrollToSegment,
     }),
-    [zoomByWheel],
+    [zoomByWheel, highlightSelection, scrollToSegment],
   );
 
   return (
@@ -213,6 +352,18 @@ export const PdfViewer = forwardRef<ViewerHandle, ViewerProps>(function PdfViewe
       <div ref={containerRef} className="viewer-container">
         <div ref={viewerElRef} className="pdfViewer" />
       </div>
+      {button && snapshot ? (
+        <button
+          type="button"
+          className="relax-floating-highlight"
+          style={{ left: button.left, top: button.top }}
+          onPointerDown={(e) => e.preventDefault()}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={consumeHighlight}
+        >
+          Highlight
+        </button>
+      ) : null}
     </div>
   );
 });

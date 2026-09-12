@@ -1,10 +1,13 @@
 import { WorkspaceProvider } from "./state/workspace";
+import { AnnotationProvider } from "./state/annotations";
 import { Shell } from "./shell/Shell";
 
 function App() {
   return (
     <WorkspaceProvider>
-      <Shell />
+      <AnnotationProvider>
+        <Shell />
+      </AnnotationProvider>
     </WorkspaceProvider>
   );
 }

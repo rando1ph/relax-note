@@ -16,10 +16,72 @@
   overflow: auto;
 }
 
-/* Future Relax Note annotation overlay (empty until M2). */
-.relax-overlay {
+/* PDF.js sizes `.page` via inline width/height against its content box. Our
+ * global `* { box-sizing: border-box }` reset would otherwise turn those into
+ * border-box values and shrink the rendered page by its 9px transparent border
+ * on each side, breaking annotation geometry round-trip accuracy. */
+.pdfViewer .page {
+  box-sizing: content-box;
+}
+
+/* Relax Note annotation highlight layers, rendered as SVG directly inside the
+ * official `.canvasWrapper` (immediately above the rasterized page canvas).
+ * The fill uses `mix-blend-mode: multiply` so black glyphs stay black; the
+ * outline layer uses normal blending so the selection ring stays crisp. Both
+ * are pointer-transparent — click-to-select is a capture-phase geometry hit
+ * test, so text selection and native links are never blocked. */
+.relax-highlight-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  opacity: 0.4;
+}
+
+.relax-highlight-outline {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+}
+
+.relax-highlight-outline rect {
+  fill: none;
+  stroke: var(--accent, #3b82f6);
+  stroke-width: 2;
+}
+
+/* Viewer-level annotation rail layer: a sibling overlay of the scroll container
+ * inside `.viewer-root`. Markers are positioned here in viewer-viewport CSS
+ * pixels (from live getBoundingClientRect data), so they are never clipped by
+ * the page/scroll overflow and stay fixed-size across zoom. */
+.relax-annotation-rail-layer {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 3;
+  z-index: 20;
+}
+
+.relax-marker {
+  position: absolute;
+  pointer-events: auto;
+  cursor: pointer;
+  overflow: visible;
+}
+
+/* Floating "Highlight" action shown near a PDF text selection. */
+.relax-floating-highlight {
+  position: absolute;
+  z-index: 10;
+  transform: translate(10px, 10px);
+  padding: 4px 12px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  background: var(--accent, #3b82f6);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }

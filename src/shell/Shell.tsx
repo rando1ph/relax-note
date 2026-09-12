@@ -1,6 +1,8 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { message } from "@tauri-apps/plugin-dialog";
 import { useWorkspace } from "../state/workspace";
+import { useAnnotations } from "../state/annotations";
+import type { Annotation } from "../annotations/types";
 import { TabBar } from "./TabBar";
 import { ReaderToolbar } from "../toolbar/ReaderToolbar";
 import { LeftSidebar } from "../sidebar/LeftSidebar";
@@ -26,11 +28,23 @@ function copySelection(): void {
 
 export function Shell() {
   const ws = useWorkspace();
+  const annotations = useAnnotations();
   const viewerRef = useRef<ViewerHandle>(null);
   const pageInputRef = useRef<HTMLInputElement>(null);
 
   const active = ws.activeTab;
   const proxy = active ? ws.getDocumentProxy(active.id) : null;
+
+  const navigateToAnnotation = useCallback(
+    (annotation: Annotation) => {
+      const segment = annotation.segments[0];
+      if (!segment) return;
+      annotations.select(annotation.id);
+      ws.goToPage(segment.pageNumber);
+      viewerRef.current?.scrollToSegment(segment.pageNumber, segment.rect);
+    },
+    [annotations, ws],
+  );
 
   const commands: AppCommands = {
     openFile: () => void ws.openFromDialog(),
@@ -39,6 +53,9 @@ export function Shell() {
     },
     quit: () => void closeWindow(),
     copy: () => copySelection(),
+    highlightSelection: () => {
+      viewerRef.current?.highlightSelection();
+    },
     zoomIn: () => viewerRef.current?.zoomIn(),
     zoomOut: () => viewerRef.current?.zoomOut(),
     zoomByWheel: (deltaY, clientX, clientY) =>
@@ -75,6 +92,17 @@ export function Shell() {
     const title = active ? `${active.title} — Relax Note` : "Relax Note";
     void setWindowTitle(title).catch(() => undefined);
   }, [active?.id, active?.title]);
+
+  // Open the right sidebar when an annotation becomes selected (create, list,
+  // or overlay hit-test) so its inspector is visible/focused.
+  const prevSelectedRef = useRef<string | null>(annotations.selectedId);
+  useEffect(() => {
+    const current = annotations.selectedId;
+    if (current != null && current !== prevSelectedRef.current) {
+      if (!ws.rightSidebar.open) ws.setSidebarOpen("right", true);
+    }
+    prevSelectedRef.current = current;
+  }, [annotations.selectedId, ws]);
 
   const ready = active !== null && active.status === "ready" && proxy !== null;
 
@@ -150,6 +178,10 @@ export function Shell() {
                   onCurrentPageChange={(p) =>
                     ws.setReaderState(active.id, { currentPage: p })
                   }
+                  annotationsByPage={annotations.byPage}
+                  selectedAnnotationId={annotations.selectedId}
+                  onSelectAnnotation={annotations.select}
+                  onCreateHighlight={(snapshot) => void annotations.createHighlight(snapshot)}
                 />
               </main>
 
@@ -159,7 +191,7 @@ export function Shell() {
                   width={ws.rightSidebar.width}
                   onResize={(w) => ws.setSidebarWidth("right", w)}
                 >
-                  <RightSidebar />
+                  <RightSidebar onNavigateToAnnotation={navigateToAnnotation} />
                 </ResizablePanel>
               ) : null}
             </>

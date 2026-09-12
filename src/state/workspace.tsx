@@ -58,6 +58,7 @@ type WorkspaceAction =
   | { type: "close"; id: string }
   | { type: "set-reader-state"; id: string; patch: Partial<ReaderState> }
   | { type: "toggle-sidebar"; side: SidebarSide }
+  | { type: "set-sidebar-open"; side: SidebarSide; open: boolean }
   | { type: "set-sidebar-width"; side: SidebarSide; width: number };
 
 interface StoredRestore {
@@ -178,6 +179,11 @@ function reducer(state: WorkspaceState, action: WorkspaceAction): WorkspaceState
       return { ...state, [key]: { ...current, open: !current.open } };
     }
 
+    case "set-sidebar-open": {
+      const key = action.side === "left" ? "leftSidebar" : "rightSidebar";
+      return { ...state, [key]: { ...state[key], open: action.open } };
+    }
+
     case "set-sidebar-width": {
       const key = action.side === "left" ? "leftSidebar" : "rightSidebar";
       return { ...state, [key]: { ...state[key], width: clampWidth(action.width, 180) } };
@@ -218,6 +224,7 @@ export interface Workspace {
   goToPage: (page: number) => void;
   navigate: (dir: "prev" | "next" | "first" | "last") => void;
   toggleSidebar: (side: SidebarSide) => void;
+  setSidebarOpen: (side: SidebarSide, open: boolean) => void;
   setSidebarWidth: (side: SidebarSide, width: number) => void;
   refreshRecent: () => Promise<RecentDocument[]>;
 }
@@ -407,6 +414,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "toggle-sidebar", side });
   }, []);
 
+  const setSidebarOpen = useCallback((side: SidebarSide, open: boolean) => {
+    dispatch({ type: "set-sidebar-open", side, open });
+  }, []);
+
   const setSidebarWidth = useCallback((side: SidebarSide, width: number) => {
     dispatch({ type: "set-sidebar-width", side, width });
   }, []);
@@ -445,6 +456,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       goToPage,
       navigate,
       toggleSidebar,
+      setSidebarOpen,
       setSidebarWidth,
       refreshRecent,
     }),
@@ -463,6 +475,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       goToPage,
       navigate,
       toggleSidebar,
+      setSidebarOpen,
       setSidebarWidth,
       refreshRecent,
     ],

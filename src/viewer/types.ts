@@ -1,4 +1,7 @@
 import type { PDFDocumentProxy } from "../pdf/pdfjs";
+import type { NormalizedRect } from "../pdf/types";
+import type { Annotation } from "../annotations/types";
+import type { SelectionSnapshot } from "../annotations/selection";
 
 export interface ViewerHandle {
   zoomIn: () => void;
@@ -10,6 +13,11 @@ export interface ViewerHandle {
   actualSize: () => void;
   fitPage: () => void;
   fitWidth: () => void;
+  /** Creates a highlight from the current (valid) PDF text selection snapshot.
+   *  Returns false when no valid selection/snapshot exists. */
+  highlightSelection: () => boolean;
+  /** Navigates to the page and scrolls the given normalized rect into view. */
+  scrollToSegment: (pageNumber: number, rect: NormalizedRect) => void;
 }
 
 export interface ViewerProps {
@@ -20,4 +28,8 @@ export interface ViewerProps {
   needsAutoFit: boolean;
   onScaleChange: (scale: number) => void;
   onCurrentPageChange: (page: number) => void;
+  annotationsByPage: Map<number, Annotation[]>;
+  selectedAnnotationId: string | null;
+  onSelectAnnotation: (id: string | null) => void;
+  onCreateHighlight: (snapshot: SelectionSnapshot) => void;
 }

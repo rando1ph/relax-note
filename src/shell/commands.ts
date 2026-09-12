@@ -3,6 +3,7 @@ export interface AppCommands {
   closeDocument: () => void;
   quit: () => void;
   copy: () => void;
+  highlightSelection: () => void;
   zoomIn: () => void;
   zoomOut: () => void;
   zoomByWheel: (deltaY: number, clientX?: number, clientY?: number) => void;
