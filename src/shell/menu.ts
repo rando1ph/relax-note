@@ -1,26 +1,11 @@
 import { useEffect, useRef } from "react";
 import type { MutableRefObject } from "react";
 import { Menu } from "@tauri-apps/api/menu";
-import type { CheckMenuItem } from "@tauri-apps/api/menu";
 import { getRecentDocuments } from "../platform/db";
 import type { AppCommands } from "./commands";
-import type { ReadingMode } from "../state/readerState";
 
 export interface MenuSyncState {
-  readingMode: ReadingMode;
   recentKey: string;
-}
-
-async function syncReadingMode(menu: Menu | null, mode: ReadingMode) {
-  if (!menu) return;
-  try {
-    const paged = await menu.get("mode-paged");
-    const continuous = await menu.get("mode-continuous");
-    if (paged) await (paged as CheckMenuItem).setChecked(mode === "paged");
-    if (continuous) await (continuous as CheckMenuItem).setChecked(mode === "continuous");
-  } catch (error) {
-    console.warn("Failed to sync reading mode menu state:", error);
-  }
 }
 
 export function useAppMenu(
@@ -28,8 +13,6 @@ export function useAppMenu(
   sync: MenuSyncState,
 ) {
   const menuRef = useRef<Menu | null>(null);
-  const modeRef = useRef<ReadingMode>(sync.readingMode);
-  modeRef.current = sync.readingMode;
 
   // Build (or rebuild) the menu when the recent-documents set changes.
   useEffect(() => {
@@ -88,23 +71,6 @@ export function useAppMenu(
           {
             text: "View",
             items: [
-              {
-                text: "Reading Mode",
-                items: [
-                  {
-                    id: "mode-paged",
-                    text: "Paged",
-                    checked: false,
-                    action: () => commandsRef.current.setReadingMode("paged"),
-                  },
-                  {
-                    id: "mode-continuous",
-                    text: "Continuous",
-                    checked: true,
-                    action: () => commandsRef.current.setReadingMode("continuous"),
-                  },
-                ],
-              },
               {
                 text: "Zoom",
                 items: [
@@ -165,21 +131,6 @@ export function useAppMenu(
           {
             text: "Help",
             items: [
-              ...(import.meta.env.DEV
-                ? [
-                    {
-                      id: "start-diag",
-                      text: "Start Zoom Diagnostics",
-                      action: () => commandsRef.current.startDiagnostics(),
-                    },
-                    {
-                      id: "stop-diag",
-                      text: "Stop Zoom Diagnostics",
-                      action: () => commandsRef.current.stopDiagnostics(),
-                    },
-                    { item: "Separator" as const },
-                  ]
-                : []),
               { id: "about", text: "About Relax Note", action: () => commandsRef.current.about() },
             ],
           },
@@ -189,7 +140,6 @@ export function useAppMenu(
       if (disposed) return;
       menuRef.current = menu;
       await menu.setAsAppMenu();
-      await syncReadingMode(menu, modeRef.current);
     })().catch((error) => console.warn("Failed to build application menu:", error));
 
     return () => {
@@ -197,9 +147,4 @@ export function useAppMenu(
       menuRef.current = null;
     };
   }, [commandsRef, sync.recentKey]);
-
-  // Keep the reading-mode check state in sync when it changes.
-  useEffect(() => {
-    void syncReadingMode(menuRef.current, sync.readingMode);
-  }, [sync.readingMode]);
 }

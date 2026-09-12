@@ -1,5 +1,4 @@
 import Database from "@tauri-apps/plugin-sql";
-import type { ReadingMode } from "../state/readerState";
 
 export interface DocumentIdentity {
   id: string;
@@ -19,8 +18,6 @@ export interface RecentDocument {
 export interface StoredReaderStateRow {
   lastPage: number | null;
   zoom: number | null;
-  readingMode: ReadingMode | null;
-  scrollOffset: number | null;
 }
 
 let dbPromise: Promise<Database> | null = null;
@@ -102,7 +99,7 @@ export async function getStoredReaderState(id: string): Promise<StoredReaderStat
   try {
     const db = await getDb();
     const rows = await db.select<StoredReaderStateRow[]>(
-      "SELECT last_page AS lastPage, zoom, reading_mode AS readingMode, scroll_offset AS scrollOffset FROM documents WHERE id = $1 LIMIT 1",
+      "SELECT last_page AS lastPage, zoom FROM documents WHERE id = $1 LIMIT 1",
       [id],
     );
     return rows[0] ?? null;
@@ -117,17 +114,18 @@ export async function saveReaderState(
   state: {
     lastPage: number;
     zoom: number;
-    readingMode: ReadingMode;
-    scrollOffset: number;
   },
 ): Promise<void> {
   try {
     const db = await getDb();
+    // The legacy `reading_mode` / `scroll_offset` columns are left in place
+    // (unused) so existing databases remain intact without a destructive
+    // migration.
     await db.execute(
       `UPDATE documents
-       SET last_page = $2, zoom = $3, reading_mode = $4, scroll_offset = $5, modified_at = $6
+       SET last_page = $2, zoom = $3, modified_at = $4
        WHERE id = $1`,
-      [id, state.lastPage, state.zoom, state.readingMode, state.scrollOffset, Date.now()],
+      [id, state.lastPage, state.zoom, Date.now()],
     );
   } catch (error) {
     console.warn("Failed to save reader state:", error);

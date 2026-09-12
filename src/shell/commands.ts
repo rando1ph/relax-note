@@ -1,5 +1,3 @@
-import type { ReadingMode } from "../state/readerState";
-
 export interface AppCommands {
   openFile: () => void;
   closeDocument: () => void;
@@ -7,7 +5,7 @@ export interface AppCommands {
   copy: () => void;
   zoomIn: () => void;
   zoomOut: () => void;
-  zoomByWheel: (deltaY: number, pointerY?: number) => void;
+  zoomByWheel: (deltaY: number, clientX?: number, clientY?: number) => void;
   actualSize: () => void;
   fitPage: () => void;
   fitWidth: () => void;
@@ -16,12 +14,9 @@ export interface AppCommands {
   firstPage: () => void;
   lastPage: () => void;
   goToPage: () => void;
-  setReadingMode: (mode: ReadingMode) => void;
   toggleLeftSidebar: () => void;
   toggleRightSidebar: () => void;
   toggleFullscreen: () => void;
   about: () => void;
   openRecent: (path: string) => void;
-  startDiagnostics: () => void;
-  stopDiagnostics: () => void;
 }
