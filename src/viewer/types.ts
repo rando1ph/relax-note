@@ -3,7 +3,10 @@ import type { PDFDocumentProxy } from "../pdf/pdfjs";
 export interface ViewerHandle {
   zoomIn: () => void;
   zoomOut: () => void;
-  zoomByWheel: (deltaY: number, pointerY?: number) => void;
+  /** deltaY is in official PDF.js "ticks" (see useKeyboard.ts): one tick =
+   *  one discrete wheel notch. Negative = zoom in. clientX/clientY anchor
+   *  zoom at the pointer. */
+  zoomByWheel: (deltaY: number, clientX?: number, clientY?: number) => void;
   actualSize: () => void;
   fitPage: () => void;
   fitWidth: () => void;
@@ -15,12 +18,6 @@ export interface ViewerProps {
   scale: number;
   currentPage: number;
   needsAutoFit: boolean;
-  initialScrollOffset: number;
   onScaleChange: (scale: number) => void;
   onCurrentPageChange: (page: number) => void;
-  onScrollOffsetChange: (offset: number) => void;
 }
-
-/** Matches the CSS: .viewer-content padding-top and .pdf-page margin-bottom. */
-export const PAGE_MARGIN = 16;
-export const PAGE_PADDING = 24;

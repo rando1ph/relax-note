@@ -63,8 +63,6 @@ type WorkspaceAction =
 interface StoredRestore {
   lastPage: number | null;
   zoom: number | null;
-  readingMode: ReaderState["readingMode"] | null;
-  scrollOffset: number | null;
 }
 
 const LEFT_SIDEBAR_DEFAULT = 264;
@@ -118,8 +116,6 @@ function reducer(state: WorkspaceState, action: WorkspaceAction): WorkspaceState
     case "tab-ready": {
       const restored: ReaderState = { ...DEFAULT_READER_STATE };
       if (action.restore.lastPage) restored.currentPage = action.restore.lastPage;
-      if (action.restore.readingMode) restored.readingMode = action.restore.readingMode;
-      if (action.restore.scrollOffset != null) restored.scrollOffset = action.restore.scrollOffset;
       const needsAutoFit = action.restore.zoom == null;
       if (action.restore.zoom != null) restored.scale = action.restore.zoom;
 
@@ -219,7 +215,6 @@ export interface Workspace {
   showHome: () => void;
   closeTab: (id: string) => void;
   setReaderState: (id: string, patch: Partial<ReaderState>) => void;
-  setReadingMode: (id: string, mode: ReaderState["readingMode"]) => void;
   goToPage: (page: number) => void;
   navigate: (dir: "prev" | "next" | "first" | "last") => void;
   toggleSidebar: (side: SidebarSide) => void;
@@ -250,8 +245,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       void saveReaderState(tab.id, {
         lastPage: tab.readerState.currentPage,
         zoom: tab.readerState.scale,
-        readingMode: tab.readerState.readingMode,
-        scrollOffset: tab.readerState.scrollOffset,
       });
       saveTimersRef.current.delete(tab.id);
     }, 500);
@@ -316,10 +309,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             ? {
                 lastPage: restore.lastPage,
                 zoom: restore.zoom,
-                readingMode: restore.readingMode,
-                scrollOffset: restore.scrollOffset,
               }
-            : { lastPage: null, zoom: null, readingMode: null, scrollOffset: null },
+            : { lastPage: null, zoom: null },
         });
 
         void upsertDocument({
@@ -373,8 +364,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         void saveReaderState(id, {
           lastPage: tab.readerState.currentPage,
           zoom: tab.readerState.scale,
-          readingMode: tab.readerState.readingMode,
-          scrollOffset: tab.readerState.scrollOffset,
         });
       }
       const proxy = documentsRef.current.get(id);
@@ -412,13 +401,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setReaderState(activeTab.id, { currentPage: target });
     },
     [activeTab, setReaderState],
-  );
-
-  const setReadingMode = useCallback(
-    (id: string, mode: ReaderState["readingMode"]) => {
-      setReaderState(id, { readingMode: mode });
-    },
-    [setReaderState],
   );
 
   const toggleSidebar = useCallback((side: SidebarSide) => {
@@ -460,7 +442,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       showHome,
       closeTab,
       setReaderState,
-      setReadingMode,
       goToPage,
       navigate,
       toggleSidebar,
@@ -479,7 +460,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       showHome,
       closeTab,
       setReaderState,
-      setReadingMode,
       goToPage,
       navigate,
       toggleSidebar,

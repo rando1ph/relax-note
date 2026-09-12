@@ -1,9 +1,6 @@
 import { useEffect, useRef } from "react";
 import { message } from "@tauri-apps/plugin-dialog";
-import { appLogDir } from "@tauri-apps/api/path";
 import { useWorkspace } from "../state/workspace";
-import { setRecorderContext, startSession, stopSession } from "../diagnostics/recorder";
-import { DiagOverlay } from "../diagnostics/DiagOverlay";
 import { TabBar } from "./TabBar";
 import { ReaderToolbar } from "../toolbar/ReaderToolbar";
 import { LeftSidebar } from "../sidebar/LeftSidebar";
@@ -44,7 +41,8 @@ export function Shell() {
     copy: () => copySelection(),
     zoomIn: () => viewerRef.current?.zoomIn(),
     zoomOut: () => viewerRef.current?.zoomOut(),
-    zoomByWheel: (deltaY, pointerY) => viewerRef.current?.zoomByWheel(deltaY, pointerY),
+    zoomByWheel: (deltaY, clientX, clientY) =>
+      viewerRef.current?.zoomByWheel(deltaY, clientX, clientY),
     actualSize: () => viewerRef.current?.actualSize(),
     fitPage: () => viewerRef.current?.fitPage(),
     fitWidth: () => viewerRef.current?.fitWidth(),
@@ -56,9 +54,6 @@ export function Shell() {
       pageInputRef.current?.focus();
       pageInputRef.current?.select();
     },
-    setReadingMode: (mode) => {
-      if (active) ws.setReadingMode(active.id, mode);
-    },
     toggleLeftSidebar: () => ws.toggleSidebar("left"),
     toggleRightSidebar: () => ws.toggleSidebar("right"),
     toggleFullscreen: () => void toggleFullscreen(),
@@ -67,40 +62,13 @@ export function Shell() {
         title: "About Relax Note",
       }),
     openRecent: (path) => void ws.openPath(path),
-    startDiagnostics: () => {
-      const sid = startSession();
-      void message(`Diagnostics recording started.\nSession: ${sid}`, {
-        title: "Zoom Diagnostics",
-      });
-    },
-    stopDiagnostics: () => {
-      stopSession();
-      void appLogDir()
-        .then((dir) =>
-          message(`Diagnostics recording stopped.\nLog directory: ${dir}`, {
-            title: "Zoom Diagnostics",
-          }),
-        )
-        .catch(() => undefined);
-    },
   };
-
-  setRecorderContext({
-    docId: active?.id,
-    docName: active?.title,
-    mode: active?.readerState.readingMode,
-    page: active?.readerState.currentPage,
-    scale: active?.readerState.scale,
-  });
 
   const commandsRef = useRef(commands);
   commandsRef.current = commands;
 
   const recentKey = ws.tabs.map((t) => t.id).join(",");
-  useAppMenu(commandsRef, {
-    readingMode: active?.readerState.readingMode ?? "continuous",
-    recentKey,
-  });
+  useAppMenu(commandsRef, { recentKey });
   useKeyboard(commandsRef);
 
   useEffect(() => {
@@ -119,7 +87,6 @@ export function Shell() {
           pageCount={active.pageCount ?? 0}
           currentPage={active.readerState.currentPage}
           scale={active.readerState.scale}
-          readingMode={active.readerState.readingMode}
           leftOpen={ws.leftSidebar.open}
           rightOpen={ws.rightSidebar.open}
           pageInputRef={pageInputRef}
@@ -133,7 +100,6 @@ export function Shell() {
           onActualSize={commands.actualSize}
           onFitPage={commands.fitPage}
           onFitWidth={commands.fitWidth}
-          onSetReadingMode={(mode) => active && ws.setReadingMode(active.id, mode)}
         />
       ) : null}
 
@@ -175,19 +141,14 @@ export function Shell() {
                 <PdfViewer
                   key={active.id}
                   ref={viewerRef}
-                  readingMode={active.readerState.readingMode}
                   pdfDocument={proxy}
                   pageCount={active.pageCount ?? 0}
                   scale={active.readerState.scale}
                   currentPage={active.readerState.currentPage}
                   needsAutoFit={active.needsAutoFit}
-                  initialScrollOffset={active.readerState.scrollOffset}
                   onScaleChange={(s) => ws.setReaderState(active.id, { scale: s })}
                   onCurrentPageChange={(p) =>
                     ws.setReaderState(active.id, { currentPage: p })
-                  }
-                  onScrollOffsetChange={(o) =>
-                    ws.setReaderState(active.id, { scrollOffset: o })
                   }
                 />
               </main>
@@ -209,7 +170,6 @@ export function Shell() {
           </main>
         )}
       </div>
-      <DiagOverlay />
     </div>
   );
 }

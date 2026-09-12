@@ -1,12 +1,10 @@
 import { useState } from "react";
 import type { ChangeEvent, KeyboardEvent, RefObject } from "react";
-import type { ReadingMode } from "../state/readerState";
 
 interface ReaderToolbarProps {
   pageCount: number;
   currentPage: number;
   scale: number;
-  readingMode: ReadingMode;
   leftOpen: boolean;
   rightOpen: boolean;
   pageInputRef?: RefObject<HTMLInputElement | null>;
@@ -20,14 +18,12 @@ interface ReaderToolbarProps {
   onActualSize: () => void;
   onFitPage: () => void;
   onFitWidth: () => void;
-  onSetReadingMode: (mode: ReadingMode) => void;
 }
 
 export function ReaderToolbar({
   pageCount,
   currentPage,
   scale,
-  readingMode,
   leftOpen,
   rightOpen,
   pageInputRef,
@@ -41,7 +37,6 @@ export function ReaderToolbar({
   onActualSize,
   onFitPage,
   onFitWidth,
-  onSetReadingMode,
 }: ReaderToolbarProps) {
   const [pageInput, setPageInput] = useState<string>("");
 
@@ -95,25 +90,6 @@ export function ReaderToolbar({
       >
         ›
       </button>
-
-      <span className="spacer" />
-
-      <div className="mode-seg" role="group" aria-label="Reading mode">
-        <button
-          type="button"
-          className={readingMode === "paged" ? "active" : ""}
-          onClick={() => onSetReadingMode("paged")}
-        >
-          Paged
-        </button>
-        <button
-          type="button"
-          className={readingMode === "continuous" ? "active" : ""}
-          onClick={() => onSetReadingMode("continuous")}
-        >
-          Continuous
-        </button>
-      </div>
 
       <span className="spacer" />
 

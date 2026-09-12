@@ -153,22 +153,6 @@ body,
   color: inherit;
 }
 
-.mode-seg {
-  display: flex;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.mode-seg button {
-  border-radius: 0;
-  padding: 3px 10px;
-}
-
-.mode-seg button.active {
-  background-color: rgba(127, 127, 127, 0.2);
-}
-
 /* ---------------- Workspace / panels ---------------- */
 
 .workspace {
@@ -352,34 +336,6 @@ body,
   pointer-events: none;
 }
 
-/* ---------------- Viewer ---------------- */
-
-.viewer {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  background-color: rgba(127, 127, 127, 0.12);
-}
-
-.viewer-content {
-  padding: 16px 12px;
-}
-
-.viewer.paged {
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-.paged-page-wrap {
-  min-height: 100%;
-  display: flex;
-}
-
-.paged-page-wrap .pdf-page {
-  margin: auto;
-}
-
 /* ---------------- State overlays / home ---------------- */
 
 .state-overlay {
@@ -476,21 +432,4 @@ body,
 .recent-meta {
   font-size: 12px;
   color: var(--muted);
-}
-
-/* ---------------- Dev diagnostics overlay ---------------- */
-
-.diag-overlay {
-  position: fixed;
-  right: 8px;
-  bottom: 8px;
-  z-index: 1000;
-  display: flex;
-  gap: 10px;
-  padding: 4px 10px;
-  font: 11px/1.4 ui-monospace, monospace;
-  background: rgba(0, 0, 0, 0.8);
-  color: #7ee787;
-  border-radius: 4px;
-  pointer-events: none;
 }

@@ -1,0 +1,25 @@
+/* Relax Note viewer container. The page/text/annotation layer styling comes
+ * from the version-matched pdfjs-dist/web/pdf_viewer.css. */
+
+.viewer-root {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  background-color: rgba(127, 127, 127, 0.12);
+}
+
+/* PDFViewer requires the scrollable container to be absolutely positioned. */
+.viewer-container {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+}
+
+/* Future Relax Note annotation overlay (empty until M2). */
+.relax-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
