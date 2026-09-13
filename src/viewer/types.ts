@@ -32,4 +32,5 @@ export interface ViewerProps {
   selectedAnnotationId: string | null;
   onSelectAnnotation: (id: string | null) => void;
   onCreateHighlight: (snapshot: SelectionSnapshot) => void;
+  onCreateVocabulary: (snapshot: SelectionSnapshot) => void;
 }

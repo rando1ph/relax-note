@@ -1,5 +1,14 @@
 import Database from "@tauri-apps/plugin-sql";
 import type { Annotation, AnnotationSegment, AnnotationType } from "../annotations/types";
+import type {
+  VocabularyEnrichment,
+  VocabularyFields,
+  VocabularyLocal,
+  VocabularyStatus,
+} from "../vocabulary/types";
+import { EMPTY_VOCABULARY_FIELDS, emptyEnrichment } from "../vocabulary/types";
+import { enrichmentFromRow } from "../vocabulary/rowMapping";
+import type { VocabularyEnrichmentRowShape } from "../vocabulary/rowMapping";
 
 export interface DocumentIdentity {
   id: string;
@@ -357,4 +366,233 @@ export async function updateAnnotation(
 export async function deleteAnnotation(id: string): Promise<void> {
   const db = await getDb();
   await db.execute("DELETE FROM annotations WHERE id = $1", [id]);
+}
+
+// ---------------------------------------------------------------------------
+// Vocabulary metadata
+// ---------------------------------------------------------------------------
+
+interface VocabularyRow {
+  annotation_id: string;
+  source_sentence: string;
+  context_before: string;
+  context_after: string;
+  section_heading: string | null;
+  created_at: number;
+}
+
+export interface VocabularyLocalPatch {
+  sourceSentence?: string;
+  contextBefore?: string;
+  contextAfter?: string;
+  sectionHeading?: string | null;
+}
+
+export interface VocabularyEnrichmentPatch {
+  status?: VocabularyStatus;
+  fields?: Partial<VocabularyFields>;
+  model?: string | null;
+  promptVersion?: string | null;
+  generatedAt?: number | null;
+  userEdited?: boolean;
+  errorMessage?: string | null;
+}
+
+/**
+ * Idempotently creates the 1:1 local + enrichment rows for a vocabulary
+ * annotation. Safe to call repeatedly and after a crash: M2 annotation
+ * creation stays authoritative, and a missing M3 row is never fatal.
+ */
+export async function ensureVocabularyRows(
+  annotationId: string,
+  sourceText: string,
+  createdAt: number,
+): Promise<void> {
+  const db = await getDb();
+  await db.execute(
+    `INSERT INTO vocabulary
+       (annotation_id, source_sentence, context_before, context_after, section_heading, created_at)
+     VALUES ($1, $2, '', '', NULL, $3)
+     ON CONFLICT(annotation_id) DO NOTHING`,
+    [annotationId, sourceText, createdAt],
+  );
+  await db.execute(
+    `INSERT INTO vocabulary_enrichment (annotation_id, status, updated_at)
+     VALUES ($1, 'pending', $2)
+     ON CONFLICT(annotation_id) DO NOTHING`,
+    [annotationId, Date.now()],
+  );
+}
+
+export interface LoadedVocabulary {
+  local: VocabularyLocal;
+  enrichment: VocabularyEnrichment;
+}
+
+function rowToLocal(row: VocabularyRow): VocabularyLocal {
+  return {
+    annotationId: row.annotation_id,
+    sourceSentence: row.source_sentence,
+    contextBefore: row.context_before,
+    contextAfter: row.context_after,
+    sectionHeading: row.section_heading,
+    createdAt: row.created_at,
+  };
+}
+
+/**
+ * Loads vocabulary metadata for all vocabulary annotations of a document.
+ * Missing rows are repaired lazily by the caller; absent entries are simply
+ * omitted here and synthesized by the caller.
+ */
+export async function loadVocabulary(
+  documentId: string,
+): Promise<Map<string, LoadedVocabulary>> {
+  const result = new Map<string, LoadedVocabulary>();
+  try {
+    const db = await getDb();
+    const localRows = await db.select<VocabularyRow[]>(
+      `SELECT v.annotation_id, v.source_sentence, v.context_before, v.context_after,
+              v.section_heading, v.created_at
+       FROM vocabulary v
+       JOIN annotations a ON a.id = v.annotation_id
+       WHERE a.document_id = $1 AND a.is_complete = 1`,
+      [documentId],
+    );
+    const enrichmentRows = await db.select<VocabularyEnrichmentRowShape[]>(
+      `SELECT e.annotation_id, e.status, e.lemma, e.display_term, e.part_of_speech,
+              e.ipa_uk, e.meaning_zh,
+              e.domain, e.domain_specific, e.user_edited, e.error_message,
+              e.model, e.prompt_version, e.generated_at, e.updated_at
+       FROM vocabulary_enrichment e
+       JOIN annotations a ON a.id = e.annotation_id
+       WHERE a.document_id = $1 AND a.is_complete = 1`,
+      [documentId],
+    );
+
+    for (const row of localRows) {
+      result.set(row.annotation_id, {
+        local: rowToLocal(row),
+        enrichment: emptyEnrichment(),
+      });
+    }
+    for (const row of enrichmentRows) {
+      const existing = result.get(row.annotation_id);
+      if (existing) {
+        existing.enrichment = enrichmentFromRow(row);
+      } else {
+        // Enrichment without a local row: keep it; local row is repaired lazily.
+        result.set(row.annotation_id, {
+          local: {
+            annotationId: row.annotation_id,
+            sourceSentence: "",
+            contextBefore: "",
+            contextAfter: "",
+            sectionHeading: null,
+            createdAt: 0,
+          },
+          enrichment: enrichmentFromRow(row),
+        });
+      }
+    }
+  } catch (error) {
+    console.warn("Failed to load vocabulary metadata:", error);
+  }
+  return result;
+}
+
+export async function updateVocabularyLocal(
+  annotationId: string,
+  patch: VocabularyLocalPatch,
+): Promise<void> {
+  const db = await getDb();
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  const push = (column: string, value: unknown) => {
+    fields.push(`${column} = $${values.length + 1}`);
+    values.push(value);
+  };
+  if (patch.sourceSentence !== undefined) push("source_sentence", patch.sourceSentence);
+  if (patch.contextBefore !== undefined) push("context_before", patch.contextBefore);
+  if (patch.contextAfter !== undefined) push("context_after", patch.contextAfter);
+  if (patch.sectionHeading !== undefined) push("section_heading", patch.sectionHeading);
+  if (fields.length === 0) return;
+  values.push(annotationId);
+  await db.execute(
+    `UPDATE vocabulary SET ${fields.join(", ")} WHERE annotation_id = $${values.length}`,
+    values,
+  );
+}
+
+/**
+ * Persists enrichment. A patch that omits `fields` intentionally preserves the
+ * existing generated fields (used for failed regeneration).
+ */
+export async function updateVocabularyEnrichment(
+  annotationId: string,
+  patch: VocabularyEnrichmentPatch,
+): Promise<void> {
+  const db = await getDb();
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  const push = (column: string, value: unknown) => {
+    fields.push(`${column} = $${values.length + 1}`);
+    values.push(value);
+  };
+
+  if (patch.status !== undefined) push("status", patch.status);
+  if (patch.fields) {
+    const f = { ...EMPTY_VOCABULARY_FIELDS, ...patch.fields };
+    push("lemma", f.lemma);
+    push("display_term", f.displayTerm);
+    push("part_of_speech", f.partOfSpeech);
+    push("ipa_uk", f.ipaUk);
+    push("meaning_zh", f.meaningZh);
+    push("domain", f.domain);
+    push("domain_specific", f.domainSpecific ? 1 : 0);
+  }
+  if (patch.model !== undefined) push("model", patch.model);
+  if (patch.promptVersion !== undefined) push("prompt_version", patch.promptVersion);
+  if (patch.generatedAt !== undefined) push("generated_at", patch.generatedAt);
+  if (patch.userEdited !== undefined) push("user_edited", patch.userEdited ? 1 : 0);
+  if (patch.errorMessage !== undefined) push("error_message", patch.errorMessage);
+
+  push("updated_at", Date.now());
+  values.push(annotationId);
+  await db.execute(
+    `UPDATE vocabulary_enrichment SET ${fields.join(", ")} WHERE annotation_id = $${values.length}`,
+    values,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Application settings (non-secret)
+// ---------------------------------------------------------------------------
+
+export async function getAppSetting(key: string): Promise<string | null> {
+  try {
+    const db = await getDb();
+    const rows = await db.select<{ value: string }[]>(
+      "SELECT value FROM app_settings WHERE key = $1 LIMIT 1",
+      [key],
+    );
+    return rows[0]?.value ?? null;
+  } catch (error) {
+    console.warn("Failed to read app setting:", error);
+    return null;
+  }
+}
+
+export async function setAppSetting(key: string, value: string): Promise<void> {
+  const db = await getDb();
+  await db.execute(
+    `INSERT INTO app_settings (key, value, updated_at) VALUES ($1, $2, $3)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+    [key, value, Date.now()],
+  );
+}
+
+export async function deleteAppSetting(key: string): Promise<void> {
+  const db = await getDb();
+  await db.execute("DELETE FROM app_settings WHERE key = $1", [key]);
 }

@@ -608,3 +608,332 @@ body,
 .inspector-delete:hover {
   background-color: rgba(180, 0, 0, 0.08);
 }
+
+/* ---------------- Vocabulary (right sidebar) ---------------- */
+
+.vocabulary-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.vocab-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  flex-shrink: 0;
+}
+
+.vocab-search {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+}
+
+.vocab-settings-button {
+  font: inherit;
+  font-size: 15px;
+  padding: 4px 8px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+}
+
+.vocab-configure {
+  margin: 0 8px 8px;
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 10px;
+  cursor: pointer;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+}
+
+.vocab-list-region {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+/* With an inspector open, cap the list (~40%) so it never pushes the
+ * inspector off-screen. Without one, it fills the panel. */
+.vocab-list-region.constrained {
+  flex: 0 1 auto;
+  max-height: 40%;
+  min-height: 88px;
+}
+
+.vocab-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.vocab-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  padding: 6px 8px;
+  font: inherit;
+  color: inherit;
+}
+
+.vocab-item:hover {
+  background-color: rgba(127, 127, 127, 0.12);
+}
+
+.vocab-item.selected {
+  background-color: rgba(59, 130, 246, 0.14);
+  border-left-color: var(--accent);
+}
+
+.vocab-item-term {
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vocab-item-meaning {
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vocab-item-meta {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* Divider between the list region and the inspector region. */
+.vocab-divider {
+  flex-shrink: 0;
+  height: 0;
+  border-top: 1px solid rgba(128, 128, 128, 0.5);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+}
+
+/* Inspector takes the remaining height and scrolls independently. */
+.vocab-inspector-region {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel-bg);
+}
+
+.vocab-inspector-scroll {
+  overflow: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vocab-inline-fields {
+  display: flex;
+  gap: 8px;
+}
+
+.vocab-inline-fields .inspector-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.vocab-meaning-input {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* Sticky bottom action bar: stays visible while the details scroll. */
+.vocab-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  background: Canvas;
+  color: CanvasText;
+}
+
+.vocab-action.destructive {
+  border-color: rgba(180, 0, 0, 0.5);
+  color: #d23b3b;
+}
+
+.vocab-action.destructive:hover {
+  background-color: rgba(180, 0, 0, 0.1);
+}
+
+.vocab-confirm-text {
+  flex: 1;
+  min-width: 120px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Always-visible selected-term header, clearly tied to the inspector region. */
+.vocab-inspector-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-bg);
+}
+
+.vocab-term {
+  font-size: 15px;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.vocab-page {
+  font-size: 11px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.vocab-status {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.vocab-error {
+  font-size: 12px;
+  color: #b00020;
+}
+
+.vocab-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.vocab-action {
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 10px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+}
+
+.vocab-action.primary {
+  border-color: var(--accent);
+}
+
+.vocab-action:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.vocab-provenance {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.vocab-checkbox {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 13px;
+}
+
+.vocab-advanced-toggle {
+  align-self: flex-start;
+  font: inherit;
+  font-size: 12px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.vocab-key-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vocab-key-saved {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.inspector-hint {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.vocab-settings-message {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ---------------- Modal (AI settings) ---------------- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.modal-panel {
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 8px;
+  background: Canvas;
+  color: CanvasText;
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+}
+
+.modal-title {
+  font-size: 15px;
+  font-weight: 600;
+}

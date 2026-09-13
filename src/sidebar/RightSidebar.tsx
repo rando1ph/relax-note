@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAnnotations } from "../state/annotations";
 import type { Annotation } from "../annotations/types";
+import { listableAnnotations } from "../annotations/list";
 import { AnnotationList } from "./AnnotationList";
 import { AnnotationInspector } from "./AnnotationInspector";
+import { VocabularyPanel } from "./VocabularyPanel";
 
 type RightTab = "annotations" | "notes" | "vocabulary" | "ai";
 
@@ -23,6 +25,11 @@ export function RightSidebar({ onNavigateToAnnotation }: RightSidebarProps) {
 
   const current = TABS.find((t) => t.id === tab) ?? TABS[0];
   const selected = annotations.annotations.find((a) => a.id === annotations.selectedId) ?? null;
+
+  // Selecting a vocabulary annotation brings its tab forward.
+  useEffect(() => {
+    if (selected?.type === "vocabulary") setTab("vocabulary");
+  }, [selected?.id, selected?.type]);
 
   return (
     <div className="sidebar-inner">
@@ -45,12 +52,12 @@ export function RightSidebar({ onNavigateToAnnotation }: RightSidebarProps) {
             <div className="panel-empty">Loading annotations…</div>
           ) : (
             <AnnotationList
-              annotations={annotations.annotations}
+              annotations={listableAnnotations(annotations.annotations)}
               selectedId={annotations.selectedId}
               onNavigate={onNavigateToAnnotation}
             />
           )}
-          {selected ? (
+          {selected && selected.type !== "vocabulary" ? (
             <AnnotationInspector
               annotation={selected}
               onUpdate={(patch) => annotations.updateAnnotation(selected.id, patch)}
@@ -59,6 +66,8 @@ export function RightSidebar({ onNavigateToAnnotation }: RightSidebarProps) {
             />
           ) : null}
         </div>
+      ) : tab === "vocabulary" ? (
+        <VocabularyPanel onNavigate={onNavigateToAnnotation} />
       ) : (
         <div className="sidebar-content">
           <div className="panel-empty">{current.empty}</div>

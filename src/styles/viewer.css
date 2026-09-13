@@ -46,6 +46,17 @@
   pointer-events: none;
 }
 
+/* Vocabulary underline layer: a wavy stroke under the selected text. Normal
+ * blending and no fill keep the PDF text unobscured. 1 SVG unit = 1 CSS px at
+ * the current scale (viewBox = viewport size), so the stroke stays fixed. */
+.relax-vocab-underline-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
 .relax-highlight-outline rect {
   fill: none;
   stroke: var(--accent, #3b82f6);
@@ -70,12 +81,17 @@
   overflow: visible;
 }
 
-/* Floating "Highlight" action shown near a PDF text selection. */
-.relax-floating-highlight {
+/* Floating selection actions: Highlight | Vocabulary. */
+.relax-floating-actions {
   position: absolute;
   z-index: 10;
   transform: translate(10px, 10px);
-  padding: 4px 12px;
+  display: flex;
+  gap: 4px;
+}
+
+.relax-floating-action {
+  padding: 4px 10px;
   font: inherit;
   font-size: 13px;
   cursor: pointer;
@@ -84,4 +100,8 @@
   border: none;
   border-radius: 4px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.relax-floating-vocabulary {
+  background: #2f7d5b;
 }

@@ -11,6 +11,7 @@ import {
   VOCAB_VISUAL_SIZE,
 } from "../annotations/marker";
 import type { MarkerKind } from "../annotations/marker";
+import { buildWavyUnderlinePath, UNDERLINE_INSET } from "../vocabulary/underline";
 
 export interface PageViewLike {
   div: HTMLDivElement;
@@ -40,6 +41,7 @@ interface OverlayData {
 interface PageLayers {
   fill: SVGSVGElement;
   outline: SVGSVGElement;
+  underline: SVGSVGElement;
 }
 
 export interface AnnotationOverlayController {
@@ -94,6 +96,7 @@ export function createAnnotationOverlay(options: {
     const entry = layers.get(pageNumber);
     entry?.fill.remove();
     entry?.outline.remove();
+    entry?.underline.remove();
     layers.delete(pageNumber);
   }
 
@@ -115,12 +118,14 @@ export function createAnnotationOverlay(options: {
       fill.setAttribute("class", "relax-highlight-layer");
       const outline = document.createElementNS(SVG_NS, "svg");
       outline.setAttribute("class", "relax-highlight-outline");
-      entry = { fill, outline };
+      const underline = document.createElementNS(SVG_NS, "svg");
+      underline.setAttribute("class", "relax-vocab-underline-layer");
+      entry = { fill, outline, underline };
       layers.set(pageNumber, entry);
     }
 
     const { width, height } = pageView.viewport;
-    for (const svg of [entry.fill, entry.outline]) {
+    for (const svg of [entry.fill, entry.outline, entry.underline]) {
       svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
       svg.setAttribute("preserveAspectRatio", "none");
       svg.style.width = "100%";
@@ -216,14 +221,34 @@ export function createAnnotationOverlay(options: {
 
     entry.fill.replaceChildren();
     entry.outline.replaceChildren();
+    entry.underline.replaceChildren();
 
     const annotations = data.byPage.get(pageNumber);
     if (annotations) {
       for (const annotation of annotations) {
+        const isVocabulary = annotation.type === "vocabulary";
         for (const segment of annotation.segments) {
           const rect = normalizedRectToViewport(pageView.viewport, segment.rect);
-          const el = appendRect(entry.fill, rect.left, rect.top, rect.width, rect.height);
-          el.setAttribute("fill", annotation.color);
+          if (isVocabulary) {
+            // Vocabulary uses a wavy underline only; no highlight fill.
+            const path = document.createElementNS(SVG_NS, "path");
+            path.setAttribute(
+              "d",
+              buildWavyUnderlinePath(
+                rect.left,
+                rect.top + rect.height - UNDERLINE_INSET,
+                rect.width,
+              ),
+            );
+            path.setAttribute("fill", "none");
+            path.setAttribute("stroke", annotation.color);
+            path.setAttribute("stroke-width", "1.4");
+            path.setAttribute("stroke-linecap", "round");
+            entry.underline.append(path);
+          } else {
+            const el = appendRect(entry.fill, rect.left, rect.top, rect.width, rect.height);
+            el.setAttribute("fill", annotation.color);
+          }
         }
       }
     }

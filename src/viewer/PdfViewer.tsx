@@ -47,6 +47,7 @@ export const PdfViewer = forwardRef<ViewerHandle, ViewerProps>(function PdfViewe
     selectedAnnotationId,
     onSelectAnnotation,
     onCreateHighlight,
+    onCreateVocabulary,
   },
   ref,
 ) {
@@ -72,10 +73,12 @@ export const PdfViewer = forwardRef<ViewerHandle, ViewerProps>(function PdfViewe
   const selectedAnnotationIdRef = useRef(selectedAnnotationId);
   const onSelectAnnotationRef = useRef(onSelectAnnotation);
   const onCreateHighlightRef = useRef(onCreateHighlight);
+  const onCreateVocabularyRef = useRef(onCreateVocabulary);
   annotationsByPageRef.current = annotationsByPage;
   selectedAnnotationIdRef.current = selectedAnnotationId;
   onSelectAnnotationRef.current = onSelectAnnotation;
   onCreateHighlightRef.current = onCreateHighlight;
+  onCreateVocabularyRef.current = onCreateVocabulary;
 
   // Ephemeral selection snapshot + floating action position.
   const [snapshot, setSnapshot] = useState<SelectionSnapshot | null>(null);
@@ -260,15 +263,26 @@ export const PdfViewer = forwardRef<ViewerHandle, ViewerProps>(function PdfViewe
     [],
   );
 
-  const consumeHighlight = useCallback(() => {
-    const snap = snapshotRef.current;
-    if (!snap) return;
-    onCreateHighlightRef.current(snap);
+  const clearSelection = useCallback(() => {
     window.getSelection()?.removeAllRanges();
     snapshotRef.current = null;
     setSnapshot(null);
     setButton(null);
   }, []);
+
+  const consumeHighlight = useCallback(() => {
+    const snap = snapshotRef.current;
+    if (!snap) return;
+    onCreateHighlightRef.current(snap);
+    clearSelection();
+  }, [clearSelection]);
+
+  const consumeVocabulary = useCallback(() => {
+    const snap = snapshotRef.current;
+    if (!snap) return;
+    onCreateVocabularyRef.current(snap);
+    clearSelection();
+  }, [clearSelection]);
 
   const highlightSelection = useCallback((): boolean => {
     const viewer = viewerRef.current;
@@ -353,16 +367,23 @@ export const PdfViewer = forwardRef<ViewerHandle, ViewerProps>(function PdfViewe
         <div ref={viewerElRef} className="pdfViewer" />
       </div>
       {button && snapshot ? (
-        <button
-          type="button"
-          className="relax-floating-highlight"
+        <div
+          className="relax-floating-actions"
           style={{ left: button.left, top: button.top }}
           onPointerDown={(e) => e.preventDefault()}
           onMouseDown={(e) => e.preventDefault()}
-          onClick={consumeHighlight}
         >
-          Highlight
-        </button>
+          <button type="button" className="relax-floating-action" onClick={consumeHighlight}>
+            Highlight
+          </button>
+          <button
+            type="button"
+            className="relax-floating-action relax-floating-vocabulary"
+            onClick={consumeVocabulary}
+          >
+            Vocabulary
+          </button>
+        </div>
       ) : null}
     </div>
   );

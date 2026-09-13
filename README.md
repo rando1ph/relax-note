@@ -4,23 +4,29 @@ A lightweight, Linux-first PDF reading and annotation application built with
 Tauri 2, React, TypeScript, and PDF.js. Inspired by the everyday reading
 features of MarginNote, but deliberately much simpler.
 
-## Current status (M1.5 — Reader Workspace & UX Foundation)
+## Current status (M3 — Vocabulary)
 
-- Document tabs (multiple PDFs open at once, per-document state).
-- Home view with Recent Documents (restores last page, zoom, and reading mode).
-- Two reading modes: continuous vertical scroll and single-page (paged).
-- Zoom: sensible fit-page default, fit page/width/actual-size, Ctrl+wheel,
-  Ctrl+= / Ctrl+- / Ctrl+0.
-- Native application menu (File/Edit/View/Navigate/Help) with accelerators.
-- Left sidebar: PDF outline and lazy windowed page thumbnails.
-- Right sidebar shell (reserved for annotations/notes/vocabulary/AI tutor).
-- Per-document reader state persisted in SQLite; filesystem scope persisted
-  across restarts via the Tauri persisted-scope plugin.
-- Selectable PDF text layer, windowed rendering, and large-PDF support retained
-  from M1.
+- Document tabs, Home/Recent Documents, paged reading, and zoom presets.
+- Native application menu with accelerators; left sidebar outline/thumbnails.
+- M2 annotation foundation: highlights with Title/Markdown Note, multi-rect
+  normalized geometry, viewer-level annotation rail, right-sidebar inspector.
+- M3 vocabulary: select a word/phrase and choose Vocabulary; a specialized
+  annotation is created immediately (local, offline) with a wavy underline and
+  a hollow rail ring. An async AI contextual dictionary enriches it with a
+  concise bilingual entry (lemma, POS, British IPA, contextual Chinese meaning,
+  English definition, optional explanation, domain).
+- Local vocabulary data is authoritative; AI enrichment is replaceable and
+  never blocks local creation. Failures preserve the annotation and offer
+  retry; failed regeneration preserves the last good entry.
+- AI transport runs in Rust (`reqwest`): URL validation, HTTPS-only except
+  loopback, redirects disabled, and the API key is held by the OS credential
+  store (Secret Service on Linux) or session-only memory. The key is never
+  returned to the frontend.
+- Right-sidebar Vocabulary tab: list, search, inspector, AI settings, and
+  Test connection.
 
-Original PDF files are never modified. Annotation editing is planned for a
-future milestone.
+Original PDF files are never modified. Flashcards/SRS and the AI Tutor are out
+of scope.
 
 ## Prerequisites
 

@@ -49,6 +49,45 @@ async function resolveDestination(
   return pageIndex + 1;
 }
 
+const outlineCache = new WeakMap<PDFDocumentProxy, Promise<OutlineItem[]>>();
+
+/** Memoized outline load, used for cheap best-effort section headings. */
+export function getOutlineCached(pdfDocument: PDFDocumentProxy): Promise<OutlineItem[]> {
+  let cached = outlineCache.get(pdfDocument);
+  if (!cached) {
+    cached = getOutline(pdfDocument);
+    outlineCache.set(pdfDocument, cached);
+  }
+  return cached;
+}
+
+/** Flattens an outline tree in reading (pre-order) order. */
+export function flattenOutline(items: OutlineItem[]): OutlineItem[] {
+  const result: OutlineItem[] = [];
+  const visit = (list: OutlineItem[]) => {
+    for (const item of list) {
+      result.push(item);
+      if (item.children.length > 0) visit(item.children);
+    }
+  };
+  visit(items);
+  return result;
+}
+
+/** Best-effort section heading: the last outline entry at or before `page`. */
+export function headingForPage(
+  items: OutlineItem[],
+  page: number,
+): string | null {
+  let heading: string | null = null;
+  for (const item of flattenOutline(items)) {
+    if (item.pageNumber != null && item.pageNumber <= page && item.title.trim()) {
+      heading = item.title.trim();
+    }
+  }
+  return heading;
+}
+
 export async function getOutline(
   pdfDocument: PDFDocumentProxy,
 ): Promise<OutlineItem[]> {

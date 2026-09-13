@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from "react";
 import { message } from "@tauri-apps/plugin-dialog";
 import { useWorkspace } from "../state/workspace";
 import { useAnnotations } from "../state/annotations";
+import { useVocabulary } from "../state/vocabulary";
 import type { Annotation } from "../annotations/types";
 import { TabBar } from "./TabBar";
 import { ReaderToolbar } from "../toolbar/ReaderToolbar";
@@ -29,6 +30,7 @@ function copySelection(): void {
 export function Shell() {
   const ws = useWorkspace();
   const annotations = useAnnotations();
+  const vocabulary = useVocabulary();
   const viewerRef = useRef<ViewerHandle>(null);
   const pageInputRef = useRef<HTMLInputElement>(null);
 
@@ -182,6 +184,7 @@ export function Shell() {
                   selectedAnnotationId={annotations.selectedId}
                   onSelectAnnotation={annotations.select}
                   onCreateHighlight={(snapshot) => void annotations.createHighlight(snapshot)}
+                  onCreateVocabulary={(snapshot) => void vocabulary.createVocabulary(snapshot)}
                 />
               </main>
 

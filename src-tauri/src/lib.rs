@@ -1,6 +1,8 @@
 use tauri_plugin_log::{Target, TargetKind};
 use tauri_plugin_sql::{Migration, MigrationKind};
 
+mod ai;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let migrations = vec![
@@ -84,9 +86,69 @@ pub fn run() {
             CREATE INDEX IF NOT EXISTS idx_annotation_rects_page ON annotation_rects(page_number);",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 9,
+            description: "create_app_settings_table",
+            sql: "CREATE TABLE IF NOT EXISTS app_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at INTEGER NOT NULL
+            );",
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 10,
+            description: "create_vocabulary_table",
+            sql: "CREATE TABLE IF NOT EXISTS vocabulary (
+                annotation_id TEXT PRIMARY KEY REFERENCES annotations(id) ON DELETE CASCADE,
+                source_sentence TEXT NOT NULL DEFAULT '',
+                context_before TEXT NOT NULL DEFAULT '',
+                context_after TEXT NOT NULL DEFAULT '',
+                section_heading TEXT,
+                created_at INTEGER NOT NULL
+            );",
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 11,
+            description: "create_vocabulary_enrichment_table",
+            sql: "CREATE TABLE IF NOT EXISTS vocabulary_enrichment (
+                annotation_id TEXT PRIMARY KEY REFERENCES annotations(id) ON DELETE CASCADE,
+                status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'ready', 'failed')),
+                lemma TEXT NOT NULL DEFAULT '',
+                display_term TEXT NOT NULL DEFAULT '',
+                part_of_speech TEXT NOT NULL DEFAULT '',
+                ipa_uk TEXT NOT NULL DEFAULT '',
+                meaning_zh TEXT NOT NULL DEFAULT '',
+                definition_en TEXT NOT NULL DEFAULT '',
+                contextual_explanation TEXT NOT NULL DEFAULT '',
+                domain TEXT NOT NULL DEFAULT '',
+                domain_specific INTEGER NOT NULL DEFAULT 0 CHECK (domain_specific IN (0, 1)),
+                user_edited INTEGER NOT NULL DEFAULT 0 CHECK (user_edited IN (0, 1)),
+                error_message TEXT,
+                model TEXT,
+                prompt_version TEXT,
+                generated_at INTEGER,
+                updated_at INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_vocabulary_enrichment_status ON vocabulary_enrichment(status);",
+            kind: MigrationKind::Up,
+        },
     ];
 
+    let ai_state = ai::AiState::new().expect("failed to initialize AI transport");
+
     tauri::Builder::default()
+        .manage(ai_state)
+        .invoke_handler(tauri::generate_handler![
+            ai::ai_credential_store_available,
+            ai::ai_set_api_key,
+            ai::ai_clear_api_key,
+            ai::ai_has_api_key,
+            ai::ai_chat,
+            ai::ai_test_connection,
+            ai::ai_cancel,
+        ])
         .plugin(
             tauri_plugin_log::Builder::new()
                 .level(log::LevelFilter::Trace)

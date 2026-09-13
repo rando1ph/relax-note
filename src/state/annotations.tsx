@@ -18,6 +18,7 @@ import { loadLastUsedColor, saveLastUsedColor } from "../annotations/colorPrefer
 import {
   createAnnotation as dbCreateAnnotation,
   deleteAnnotation as dbDeleteAnnotation,
+  ensureVocabularyRows,
   loadAnnotations,
   updateAnnotation as dbUpdateAnnotation,
 } from "../platform/db";
@@ -32,6 +33,7 @@ export interface AnnotationStore {
   loading: boolean;
   select: (id: string | null) => void;
   createHighlight: (snapshot: SelectionSnapshot) => Promise<Annotation | null>;
+  createVocabulary: (snapshot: SelectionSnapshot) => Promise<Annotation | null>;
   updateAnnotation: (id: string, patch: AnnotationEditablePatch) => void;
   deleteAnnotation: (id: string) => void;
   flushPending: () => void;
@@ -133,8 +135,8 @@ export function AnnotationProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const createHighlight = useCallback(
-    async (snapshot: SelectionSnapshot): Promise<Annotation | null> => {
+  const createAnnotationOfType = useCallback(
+    async (type: AnnotationType, snapshot: SelectionSnapshot): Promise<Annotation | null> => {
       const docId = currentDocRef.current;
       if (!docId) return null;
 
@@ -142,7 +144,7 @@ export function AnnotationProvider({ children }: { children: ReactNode }) {
       const annotation: Annotation = {
         id: crypto.randomUUID(),
         documentId: docId,
-        type: "highlight" as AnnotationType,
+        type,
         color: loadLastUsedColor(),
         sourceText: snapshot.text,
         title: null,
@@ -169,6 +171,15 @@ export function AnnotationProvider({ children }: { children: ReactNode }) {
           updatedAt: annotation.updatedAt,
           segments: annotation.segments,
         });
+        if (type === "vocabulary") {
+          // Idempotent and best-effort: a missing metadata row never invalidates
+          // the authoritative annotation.
+          await ensureVocabularyRows(
+            annotation.id,
+            annotation.sourceText,
+            annotation.createdAt,
+          ).catch(() => undefined);
+        }
       } catch (error) {
         console.warn("Failed to create annotation:", error);
         return null;
@@ -188,6 +199,16 @@ export function AnnotationProvider({ children }: { children: ReactNode }) {
       return annotation;
     },
     [],
+  );
+
+  const createHighlight = useCallback(
+    (snapshot: SelectionSnapshot) => createAnnotationOfType("highlight", snapshot),
+    [createAnnotationOfType],
+  );
+
+  const createVocabulary = useCallback(
+    (snapshot: SelectionSnapshot) => createAnnotationOfType("vocabulary", snapshot),
+    [createAnnotationOfType],
   );
 
   const updateAnnotation = useCallback(
@@ -240,6 +261,7 @@ export function AnnotationProvider({ children }: { children: ReactNode }) {
       loading,
       select,
       createHighlight,
+      createVocabulary,
       updateAnnotation,
       deleteAnnotation,
       flushPending,
@@ -251,6 +273,7 @@ export function AnnotationProvider({ children }: { children: ReactNode }) {
       loading,
       select,
       createHighlight,
+      createVocabulary,
       updateAnnotation,
       deleteAnnotation,
       flushPending,
