@@ -1,12 +1,12 @@
-import { useEffect, useState } from "react";
-import { useAnnotations } from "../state/annotations";
 import type { Annotation } from "../annotations/types";
 import { listableAnnotations } from "../annotations/list";
+import { useAnnotations } from "../state/annotations";
 import { AnnotationList } from "./AnnotationList";
 import { AnnotationInspector } from "./AnnotationInspector";
 import { VocabularyPanel } from "./VocabularyPanel";
+import { NotesPanel } from "./NotesPanel";
 
-type RightTab = "annotations" | "notes" | "vocabulary" | "ai";
+export type RightTab = "annotations" | "notes" | "vocabulary" | "ai";
 
 const TABS: { id: RightTab; label: string; empty: string }[] = [
   { id: "annotations", label: "Annotations", empty: "No annotations yet." },
@@ -16,20 +16,21 @@ const TABS: { id: RightTab; label: string; empty: string }[] = [
 ];
 
 interface RightSidebarProps {
+  tab: RightTab;
+  onTabChange: (tab: RightTab) => void;
   onNavigateToAnnotation: (annotation: Annotation) => void;
+  onNavigateToNoteAnnotation: (annotationId: string) => void;
+  onNavigateToNotePage: (pageNumber: number) => void;
 }
 
-export function RightSidebar({ onNavigateToAnnotation }: RightSidebarProps) {
-  const [tab, setTab] = useState<RightTab>("annotations");
-  const annotations = useAnnotations();
-
+export function RightSidebar({
+  tab,
+  onTabChange,
+  onNavigateToAnnotation,
+  onNavigateToNoteAnnotation,
+  onNavigateToNotePage,
+}: RightSidebarProps) {
   const current = TABS.find((t) => t.id === tab) ?? TABS[0];
-  const selected = annotations.annotations.find((a) => a.id === annotations.selectedId) ?? null;
-
-  // Selecting a vocabulary annotation brings its tab forward.
-  useEffect(() => {
-    if (selected?.type === "vocabulary") setTab("vocabulary");
-  }, [selected?.id, selected?.type]);
 
   return (
     <div className="sidebar-inner">
@@ -39,7 +40,7 @@ export function RightSidebar({ onNavigateToAnnotation }: RightSidebarProps) {
             key={t.id}
             type="button"
             className={tab === t.id ? "sidebar-tab active" : "sidebar-tab"}
-            onClick={() => setTab(t.id)}
+            onClick={() => onTabChange(t.id)}
           >
             {t.label}
           </button>
@@ -47,25 +48,12 @@ export function RightSidebar({ onNavigateToAnnotation }: RightSidebarProps) {
       </div>
 
       {tab === "annotations" ? (
-        <div className="annotations-panel">
-          {annotations.loading && annotations.annotations.length === 0 ? (
-            <div className="panel-empty">Loading annotations…</div>
-          ) : (
-            <AnnotationList
-              annotations={listableAnnotations(annotations.annotations)}
-              selectedId={annotations.selectedId}
-              onNavigate={onNavigateToAnnotation}
-            />
-          )}
-          {selected && selected.type !== "vocabulary" ? (
-            <AnnotationInspector
-              annotation={selected}
-              onUpdate={(patch) => annotations.updateAnnotation(selected.id, patch)}
-              onDelete={() => annotations.deleteAnnotation(selected.id)}
-              onFlush={() => annotations.flushPending()}
-            />
-          ) : null}
-        </div>
+        <AnnotationsTab onNavigateToAnnotation={onNavigateToAnnotation} />
+      ) : tab === "notes" ? (
+        <NotesPanel
+          onNavigateAnnotation={onNavigateToNoteAnnotation}
+          onNavigatePage={onNavigateToNotePage}
+        />
       ) : tab === "vocabulary" ? (
         <VocabularyPanel onNavigate={onNavigateToAnnotation} />
       ) : (
@@ -73,6 +61,37 @@ export function RightSidebar({ onNavigateToAnnotation }: RightSidebarProps) {
           <div className="panel-empty">{current.empty}</div>
         </div>
       )}
+    </div>
+  );
+}
+
+function AnnotationsTab({
+  onNavigateToAnnotation,
+}: {
+  onNavigateToAnnotation: (annotation: Annotation) => void;
+}) {
+  const annotations = useAnnotations();
+  const selected = annotations.annotations.find((a) => a.id === annotations.selectedId) ?? null;
+
+  return (
+    <div className="annotations-panel">
+      {annotations.loading && annotations.annotations.length === 0 ? (
+        <div className="panel-empty">Loading annotations…</div>
+      ) : (
+        <AnnotationList
+          annotations={listableAnnotations(annotations.annotations)}
+          selectedId={annotations.selectedId}
+          onNavigate={onNavigateToAnnotation}
+        />
+      )}
+      {selected && selected.type !== "vocabulary" ? (
+        <AnnotationInspector
+          annotation={selected}
+          onUpdate={(patch) => annotations.updateAnnotation(selected.id, patch)}
+          onDelete={() => annotations.deleteAnnotation(selected.id)}
+          onFlush={() => annotations.flushPending()}
+        />
+      ) : null}
     </div>
   );
 }

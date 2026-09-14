@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { message } from "@tauri-apps/plugin-dialog";
 import { useWorkspace } from "../state/workspace";
 import { useAnnotations } from "../state/annotations";
@@ -8,6 +8,7 @@ import { TabBar } from "./TabBar";
 import { ReaderToolbar } from "../toolbar/ReaderToolbar";
 import { LeftSidebar } from "../sidebar/LeftSidebar";
 import { RightSidebar } from "../sidebar/RightSidebar";
+import type { RightTab } from "../sidebar/RightSidebar";
 import { ResizablePanel } from "../sidebar/ResizablePanel";
 import { HomeView } from "../home/HomeView";
 import { PdfViewer } from "../viewer/PdfViewer";
@@ -33,19 +34,40 @@ export function Shell() {
   const vocabulary = useVocabulary();
   const viewerRef = useRef<ViewerHandle>(null);
   const pageInputRef = useRef<HTMLInputElement>(null);
+  const [rightTab, setRightTab] = useState<RightTab>("annotations");
+  const noteNavIntentRef = useRef(false);
 
   const active = ws.activeTab;
   const proxy = active ? ws.getDocumentProxy(active.id) : null;
 
   const navigateToAnnotation = useCallback(
-    (annotation: Annotation) => {
+    (annotation: Annotation, fromNotes = false) => {
       const segment = annotation.segments[0];
       if (!segment) return;
+      noteNavIntentRef.current = fromNotes;
       annotations.select(annotation.id);
       ws.goToPage(segment.pageNumber);
       viewerRef.current?.scrollToSegment(segment.pageNumber, segment.rect);
+      if (fromNotes) setRightTab("notes");
     },
     [annotations, ws],
+  );
+
+  // Navigation from the Notes list keeps the Notes tab visible.
+  const navigateToNoteAnnotation = useCallback(
+    (annotationId: string) => {
+      const annotation = annotations.annotations.find((a) => a.id === annotationId);
+      if (!annotation) return;
+      navigateToAnnotation(annotation, true);
+    },
+    [annotations.annotations, navigateToAnnotation],
+  );
+
+  const navigateToNotePage = useCallback(
+    (pageNumber: number) => {
+      ws.goToPage(pageNumber);
+    },
+    [ws],
   );
 
   const commands: AppCommands = {
@@ -105,6 +127,21 @@ export function Shell() {
     }
     prevSelectedRef.current = current;
   }, [annotations.selectedId, ws]);
+
+  // Bring the Vocabulary tab forward when a vocabulary annotation is selected
+  // through a normal path (PDF overlay, creation, etc.). Selections initiated by
+  // Notes navigation set noteNavIntentRef and are skipped so the Notes tab stays
+  // visible — no global type→tab mapping.
+  useEffect(() => {
+    const current = annotations.selectedId;
+    if (current == null) return;
+    if (noteNavIntentRef.current) {
+      noteNavIntentRef.current = false;
+      return;
+    }
+    const selected = annotations.annotations.find((a) => a.id === current);
+    if (selected?.type === "vocabulary") setRightTab("vocabulary");
+  }, [annotations.selectedId, annotations.annotations]);
 
   const ready = active !== null && active.status === "ready" && proxy !== null;
 
@@ -194,7 +231,13 @@ export function Shell() {
                   width={ws.rightSidebar.width}
                   onResize={(w) => ws.setSidebarWidth("right", w)}
                 >
-                  <RightSidebar onNavigateToAnnotation={navigateToAnnotation} />
+                  <RightSidebar
+                    tab={rightTab}
+                    onTabChange={setRightTab}
+                    onNavigateToAnnotation={navigateToAnnotation}
+                    onNavigateToNoteAnnotation={navigateToNoteAnnotation}
+                    onNavigateToNotePage={navigateToNotePage}
+                  />
                 </ResizablePanel>
               ) : null}
             </>

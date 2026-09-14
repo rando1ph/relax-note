@@ -1,5 +1,6 @@
 import Database from "@tauri-apps/plugin-sql";
 import type { Annotation, AnnotationSegment, AnnotationType } from "../annotations/types";
+import type { PageNote } from "../notes/types";
 import type {
   VocabularyEnrichment,
   VocabularyFields,
@@ -366,6 +367,113 @@ export async function updateAnnotation(
 export async function deleteAnnotation(id: string): Promise<void> {
   const db = await getDb();
   await db.execute("DELETE FROM annotations WHERE id = $1", [id]);
+}
+
+// ---------------------------------------------------------------------------
+// Standalone page notes
+// ---------------------------------------------------------------------------
+
+interface PageNoteRow {
+  id: string;
+  document_id: string;
+  page_number: number;
+  title: string | null;
+  note: string;
+  created_at: number;
+  updated_at: number;
+}
+
+function rowToPageNote(row: PageNoteRow): PageNote {
+  return {
+    id: row.id,
+    documentId: row.document_id,
+    pageNumber: row.page_number,
+    title: row.title,
+    note: row.note,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+/**
+ * Loads standalone page notes for a document. Empty + untitled drafts (title and
+ * note both blank) are purged first — the analog of the `is_complete = 0` purge
+ * for annotations — so abandoned drafts never become permanent junk.
+ */
+export async function loadPageNotes(documentId: string): Promise<PageNote[]> {
+  try {
+    const db = await getDb();
+
+    await db
+      .execute(
+        "DELETE FROM page_notes WHERE document_id = $1 AND note = '' AND (title IS NULL OR title = '')",
+        [documentId],
+      )
+      .catch(() => undefined);
+
+    const rows = await db.select<PageNoteRow[]>(
+      `SELECT id, document_id, page_number, title, note, created_at, updated_at
+       FROM page_notes
+       WHERE document_id = $1
+       ORDER BY page_number ASC, created_at ASC, id ASC`,
+      [documentId],
+    );
+    return rows.map(rowToPageNote);
+  } catch (error) {
+    console.warn("Failed to load page notes:", error);
+    return [];
+  }
+}
+
+/** Single-row atomic insert; a page note needs no `is_complete` flag. */
+export async function createPageNote(input: PageNote): Promise<void> {
+  const db = await getDb();
+  await db.execute(
+    `INSERT INTO page_notes (id, document_id, page_number, title, note, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      input.id,
+      input.documentId,
+      input.pageNumber,
+      input.title,
+      input.note,
+      input.createdAt,
+      input.updatedAt,
+    ],
+  );
+}
+
+export interface PageNotePatch {
+  title?: string | null;
+  note?: string;
+}
+
+export async function updatePageNote(id: string, patch: PageNotePatch): Promise<void> {
+  const db = await getDb();
+  const fields: string[] = [];
+  const values: unknown[] = [];
+
+  if (patch.title !== undefined) {
+    fields.push("title = $" + (values.length + 1));
+    values.push(patch.title);
+  }
+  if (patch.note !== undefined) {
+    fields.push("note = $" + (values.length + 1));
+    values.push(patch.note);
+  }
+
+  fields.push("updated_at = $" + (values.length + 1));
+  values.push(Date.now());
+
+  values.push(id);
+  const idParam = "$" + values.length;
+
+  await db.execute(`UPDATE page_notes SET ${fields.join(", ")} WHERE id = ${idParam}`, values);
+}
+
+export async function deletePageNote(id: string): Promise<void> {
+  const db = await getDb();
+  await db.execute("DELETE FROM page_notes WHERE id = $1", [id]);
 }
 
 // ---------------------------------------------------------------------------
