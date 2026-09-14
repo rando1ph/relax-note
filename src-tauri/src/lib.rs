@@ -134,6 +134,22 @@ pub fn run() {
             CREATE INDEX IF NOT EXISTS idx_vocabulary_enrichment_status ON vocabulary_enrichment(status);",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 12,
+            description: "create_page_notes_table",
+            sql: "CREATE TABLE IF NOT EXISTS page_notes (
+                id TEXT PRIMARY KEY,
+                document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+                page_number INTEGER NOT NULL CHECK (page_number >= 1),
+                title TEXT,
+                note TEXT NOT NULL DEFAULT '',
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_page_notes_document ON page_notes(document_id);
+            CREATE INDEX IF NOT EXISTS idx_page_notes_document_page ON page_notes(document_id, page_number);",
+            kind: MigrationKind::Up,
+        },
     ];
 
     let ai_state = ai::AiState::new().expect("failed to initialize AI transport");

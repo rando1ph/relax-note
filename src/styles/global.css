@@ -728,7 +728,9 @@ body,
   color: var(--muted);
 }
 
-/* Divider between the list region and the inspector region. */
+/* Divider between the list region and the inspector region (shared by the
+ * Vocabulary and Notes panels). */
+.sidebar-divider,
 .vocab-divider {
   flex-shrink: 0;
   height: 0;
@@ -770,7 +772,9 @@ body,
   font-weight: 600;
 }
 
-/* Sticky bottom action bar: stays visible while the details scroll. */
+/* Sticky bottom action bar: stays visible while the details scroll (shared by
+ * the Vocabulary and Notes inspectors). */
+.sidebar-action-bar,
 .vocab-action-bar {
   display: flex;
   align-items: center;
@@ -783,15 +787,41 @@ body,
   color: CanvasText;
 }
 
+.sidebar-action,
+.vocab-action {
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 10px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+}
+
+.sidebar-action.primary,
+.vocab-action.primary {
+  border-color: var(--accent);
+}
+
+.sidebar-action.destructive,
 .vocab-action.destructive {
   border-color: rgba(180, 0, 0, 0.5);
   color: #d23b3b;
 }
 
+.sidebar-action.destructive:hover,
 .vocab-action.destructive:hover {
   background-color: rgba(180, 0, 0, 0.1);
 }
 
+.sidebar-action:disabled,
+.vocab-action:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.sidebar-confirm-text,
 .vocab-confirm-text {
   flex: 1;
   min-width: 120px;
@@ -839,26 +869,6 @@ body,
   flex-wrap: wrap;
 }
 
-.vocab-action {
-  font: inherit;
-  font-size: 13px;
-  padding: 5px 10px;
-  cursor: pointer;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: none;
-  color: inherit;
-}
-
-.vocab-action.primary {
-  border-color: var(--accent);
-}
-
-.vocab-action:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
 .vocab-provenance {
   font-size: 11px;
   color: var(--muted);
@@ -902,6 +912,172 @@ body,
 .vocab-settings-message {
   font-size: 12px;
   color: var(--muted);
+}
+
+/* ---------------- Notes (right sidebar) ---------------- */
+
+.notes-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.notes-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  flex-shrink: 0;
+}
+
+.notes-search {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+}
+
+.notes-add-button {
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 10px;
+  cursor: pointer;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  white-space: nowrap;
+}
+
+.notes-add-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.notes-list-region {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+/* With an inspector open, cap the list (~40%) so it never pushes the
+ * inspector off-screen. Without one, it fills the panel. */
+.notes-list-region.constrained {
+  flex: 0 1 auto;
+  max-height: 40%;
+  min-height: 88px;
+}
+
+.notes-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.notes-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  padding: 6px 8px;
+  font: inherit;
+  color: inherit;
+}
+
+.notes-item:hover {
+  background-color: rgba(127, 127, 127, 0.12);
+}
+
+.notes-item.selected {
+  background-color: rgba(59, 130, 246, 0.14);
+  border-left-color: var(--accent);
+}
+
+.notes-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.notes-item-primary {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notes-item-source {
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notes-item-meta {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* Inspector takes the remaining height and scrolls independently. */
+.notes-inspector-region {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel-bg);
+}
+
+.notes-inspector-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-bg);
+}
+
+.notes-inspector-kind {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.notes-inspector-page {
+  font-size: 11px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.notes-inspector-scroll {
+  overflow: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notes-editor {
+  min-height: 96px;
 }
 
 /* ---------------- Modal (AI settings) ---------------- */
