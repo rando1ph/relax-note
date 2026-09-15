@@ -13,6 +13,7 @@ function item(overrides: Partial<NoteListItem>): NoteListItem {
     note: "",
     sourceText: null,
     color: null,
+    origin: null,
     createdAt: 0,
     updatedAt: 0,
     ...overrides,

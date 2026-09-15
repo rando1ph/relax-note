@@ -3,6 +3,7 @@ import { message } from "@tauri-apps/plugin-dialog";
 import { useWorkspace } from "../state/workspace";
 import { useAnnotations } from "../state/annotations";
 import { useVocabulary } from "../state/vocabulary";
+import { useTutor } from "../state/tutor";
 import type { Annotation } from "../annotations/types";
 import { TabBar } from "./TabBar";
 import { ReaderToolbar } from "../toolbar/ReaderToolbar";
@@ -32,6 +33,7 @@ export function Shell() {
   const ws = useWorkspace();
   const annotations = useAnnotations();
   const vocabulary = useVocabulary();
+  const tutor = useTutor();
   const viewerRef = useRef<ViewerHandle>(null);
   const pageInputRef = useRef<HTMLInputElement>(null);
   const [rightTab, setRightTab] = useState<RightTab>("annotations");
@@ -143,6 +145,17 @@ export function Shell() {
     if (selected?.type === "vocabulary") setRightTab("vocabulary");
   }, [annotations.selectedId, annotations.annotations]);
 
+  // Direct Ask AI (PDF selection or an inspector action) requests the Tutor
+  // surface: open the right sidebar and switch to the AI tab. The attachment
+  // itself already happened in the Tutor store.
+  useEffect(() => {
+    if (!tutor.openRequested) return;
+    if (!ws.rightSidebar.open) ws.setSidebarOpen("right", true);
+    setRightTab("ai");
+    tutor.acknowledgeOpen();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tutor.openRequested]);
+
   const ready = active !== null && active.status === "ready" && proxy !== null;
 
   return (
@@ -222,6 +235,7 @@ export function Shell() {
                   onSelectAnnotation={annotations.select}
                   onCreateHighlight={(snapshot) => void annotations.createHighlight(snapshot)}
                   onCreateVocabulary={(snapshot) => void vocabulary.createVocabulary(snapshot)}
+                  onAskAi={(snapshot) => tutor.attachSelection(snapshot)}
                 />
               </main>
 

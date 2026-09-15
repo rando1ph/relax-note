@@ -71,7 +71,7 @@ export function NotesPanel({ onNavigateAnnotation, onNavigatePage }: NotesPanelP
         </button>
       </div>
 
-      <div className={"notes-list-region" + (selectedItem ? " constrained" : "")}>
+      <div className={"sidebar-list-region notes-list-region" + (selectedItem ? " constrained" : "")}>
         {notes.loading && notes.items.length === 0 ? (
           <div className="panel-empty">Loading notes…</div>
         ) : filtered.length === 0 ? (

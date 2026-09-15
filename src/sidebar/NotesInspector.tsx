@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { NoteListItem } from "../notes/types";
 import { useNotes } from "../state/notes";
+import { useTutor } from "../state/tutor";
 import { NoteEditor } from "./NoteEditor";
 
 interface NotesInspectorProps {
@@ -10,6 +11,7 @@ interface NotesInspectorProps {
 
 export function NotesInspector({ item, focusRequest }: NotesInspectorProps) {
   const notes = useNotes();
+  const tutor = useTutor();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const editorRef = useRef<HTMLTextAreaElement | null>(null);
   const focusedRef = useRef(0);
@@ -23,14 +25,20 @@ export function NotesInspector({ item, focusRequest }: NotesInspectorProps) {
 
   const isPage = item.kind === "page";
 
+  const askAi = () => {
+    if (item.kind === "annotation") tutor.askAnnotation(item.selection.id);
+    else tutor.askPageNote(item.selection.id);
+  };
+
   return (
-    <div className="notes-inspector-region">
+    <div className="sidebar-inspector-region notes-inspector-region">
       <div className="notes-inspector-header">
         <span className="notes-inspector-kind">{item.typeLabel}</span>
+        {item.origin === "ai_tutor" ? <span className="notes-ai-badge">AI</span> : null}
         <span className="notes-inspector-page">Page {item.pageNumber}</span>
       </div>
 
-      <div className="notes-inspector-scroll">
+      <div className="sidebar-inspector-scroll notes-inspector-scroll">
         {item.sourceText ? (
           <div className="inspector-source">{item.sourceText}</div>
         ) : null}
@@ -47,7 +55,7 @@ export function NotesInspector({ item, focusRequest }: NotesInspectorProps) {
           />
         </label>
 
-        <label className="inspector-field">
+        <div className="inspector-field">
           <span className="inspector-label">Note</span>
           <NoteEditor
             value={item.note}
@@ -56,10 +64,13 @@ export function NotesInspector({ item, focusRequest }: NotesInspectorProps) {
             onFlush={notes.flush}
             textareaRef={editorRef}
           />
-        </label>
+        </div>
       </div>
 
       <div className="sidebar-action-bar">
+        <button type="button" className="sidebar-action" onClick={askAi}>
+          Ask AI
+        </button>
         {isPage ? (
           confirmingDelete ? (
             <>

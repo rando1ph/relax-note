@@ -1,5 +1,7 @@
 import type { Annotation, AnnotationEditablePatch } from "../annotations/types";
+import { useTutor } from "../state/tutor";
 import { ColorPalette } from "./ColorPalette";
+import { NoteEditor } from "./NoteEditor";
 
 interface AnnotationInspectorProps {
   annotation: Annotation;
@@ -14,44 +16,56 @@ export function AnnotationInspector({
   onDelete,
   onFlush,
 }: AnnotationInspectorProps) {
+  const tutor = useTutor();
+
   return (
-    <div className="annotation-inspector">
-      <div className="inspector-source">{annotation.sourceText}</div>
+    <div className="sidebar-inspector-region">
+      <div className="sidebar-inspector-scroll">
+        <div className="inspector-source">{annotation.sourceText}</div>
 
-      <label className="inspector-field">
-        <span className="inspector-label">Title</span>
-        <input
-          type="text"
-          className="inspector-input"
-          value={annotation.title ?? ""}
-          placeholder="Optional title"
-          onChange={(e) => onUpdate({ title: e.currentTarget.value || null })}
-          onBlur={onFlush}
-        />
-      </label>
+        <label className="inspector-field">
+          <span className="inspector-label">Title</span>
+          <input
+            type="text"
+            className="inspector-input"
+            value={annotation.title ?? ""}
+            placeholder="Optional title"
+            onChange={(e) => onUpdate({ title: e.currentTarget.value || null })}
+            onBlur={onFlush}
+          />
+        </label>
 
-      <label className="inspector-field">
-        <span className="inspector-label">Note</span>
-        <textarea
-          className="inspector-note"
-          value={annotation.note}
-          placeholder="Markdown note…"
-          onChange={(e) => onUpdate({ note: e.currentTarget.value })}
-          onBlur={onFlush}
-        />
-      </label>
+        <div className="inspector-field">
+          <span className="inspector-label">Note</span>
+          <NoteEditor
+            value={annotation.note}
+            placeholder="Markdown note…"
+            onChange={(note) => onUpdate({ note })}
+            onFlush={onFlush}
+          />
+        </div>
 
-      <div className="inspector-field">
-        <span className="inspector-label">Color</span>
-        <ColorPalette
-          value={annotation.color}
-          onChange={(color) => onUpdate({ color })}
-        />
+        <div className="inspector-field">
+          <span className="inspector-label">Color</span>
+          <ColorPalette
+            value={annotation.color}
+            onChange={(color) => onUpdate({ color })}
+          />
+        </div>
       </div>
 
-      <button type="button" className="inspector-delete" onClick={onDelete}>
-        Delete annotation
-      </button>
+      <div className="sidebar-action-bar">
+        <button
+          type="button"
+          className="sidebar-action"
+          onClick={() => tutor.askAnnotation(annotation.id)}
+        >
+          Ask AI
+        </button>
+        <button type="button" className="sidebar-action destructive" onClick={onDelete}>
+          Delete annotation
+        </button>
+      </div>
     </div>
   );
 }

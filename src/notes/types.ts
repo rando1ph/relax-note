@@ -12,6 +12,8 @@
  *    no selected source text.
  */
 
+export type PageNoteOrigin = "user" | "ai_tutor";
+
 export interface PageNote {
   id: string;
   documentId: string;
@@ -20,6 +22,8 @@ export interface PageNote {
   note: string;
   createdAt: number;
   updatedAt: number;
+  /** Who created the note. Existing notes are `user`; AI Tutor saves are `ai_tutor`. */
+  origin: PageNoteOrigin;
 }
 
 export type NoteKind = "annotation" | "page";
@@ -50,6 +54,8 @@ export interface NoteListItem {
   sourceText: string | null;
   /** Highlight/vocabulary color; only present for annotation notes. */
   color: string | null;
+  /** Page-note origin; `null` for annotation notes. */
+  origin: PageNoteOrigin | null;
   createdAt: number;
   updatedAt: number;
 }

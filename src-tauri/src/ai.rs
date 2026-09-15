@@ -19,6 +19,8 @@ use url::Url;
 
 const KEYRING_SERVICE: &str = "dev.randolf.relaxnote";
 const DEFAULT_TIMEOUT_MS: u64 = 45_000;
+const MIN_TIMEOUT_MS: u64 = 1_000;
+const MAX_TIMEOUT_MS: u64 = 600_000;
 const MAX_MESSAGES: usize = 16;
 const MAX_MESSAGE_BYTES: usize = 32 * 1024;
 const MAX_MODEL_LEN: usize = 128;
@@ -30,9 +32,13 @@ pub struct AiMessage {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AiChatResult {
     pub content: String,
     pub model: String,
+    /// Normalized `choices[0].finish_reason`: "stop", "length", "other", or
+    /// absent when the provider omits it.
+    pub finish_reason: Option<String>,
 }
 
 pub struct AiState {
@@ -218,12 +224,31 @@ fn content_text(value: &Value) -> Option<String> {
     }
 }
 
+/// Normalizes a provider finish reason to one of "stop", "length", or "other".
+fn normalize_finish_reason(value: &str) -> String {
+    match value {
+        "stop" => "stop".to_string(),
+        "length" => "length".to_string(),
+        _ => "other".to_string(),
+    }
+}
+
 /// Normalizes an OpenAI-compatible chat-completions response to assistant text.
 /// The final `message.content` is authoritative; `reasoning_content` is used
 /// only when final content is absent or empty.
 fn extract_assistant_text(body: &str, requested_model: &str) -> Result<AiChatResult, String> {
     let value: Value =
         serde_json::from_str(body).map_err(|_| "AI endpoint returned an invalid response".to_string())?;
+
+    let choice = value
+        .get("choices")
+        .and_then(Value::as_array)
+        .and_then(|choices| choices.first());
+
+    let finish_reason = choice
+        .and_then(|choice| choice.get("finish_reason"))
+        .and_then(Value::as_str)
+        .map(normalize_finish_reason);
 
     if cfg!(debug_assertions) {
         let keys: Vec<&str> = value
@@ -236,9 +261,10 @@ fn extract_assistant_text(body: &str, requested_model: &str) -> Result<AiChatRes
             .map(Vec::len)
             .unwrap_or(0);
         log::debug!(
-            "[ai] response keys={:?} choices={}",
+            "[ai] response keys={:?} choices={} finish_reason={:?}",
             keys,
-            choices_count
+            choices_count,
+            finish_reason
         );
     }
 
@@ -248,11 +274,7 @@ fn extract_assistant_text(body: &str, requested_model: &str) -> Result<AiChatRes
         .unwrap_or(requested_model)
         .to_string();
 
-    let message = value
-        .get("choices")
-        .and_then(Value::as_array)
-        .and_then(|choices| choices.first())
-        .and_then(|choice| choice.get("message"));
+    let message = choice.and_then(|choice| choice.get("message"));
 
     let content = message
         .and_then(|message| message.get("content"))
@@ -279,13 +301,19 @@ fn extract_assistant_text(body: &str, requested_model: &str) -> Result<AiChatRes
     if cfg!(debug_assertions) {
         let preview: String = content.chars().take(200).collect();
         log::debug!(
-            "[ai] assistant content len={} preview={:?}",
+            "[ai] assistant content len={} model={} finish_reason={:?} preview={:?}",
             content.len(),
+            model,
+            finish_reason,
             preview
         );
     }
 
-    Ok(AiChatResult { content, model })
+    Ok(AiChatResult {
+        content,
+        model,
+        finish_reason,
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -298,11 +326,18 @@ async fn run_chat(
     json_mode: Option<bool>,
     max_tokens: Option<u32>,
     request_id: Option<String>,
+    timeout_ms: Option<u64>,
 ) -> Result<AiChatResult, String> {
     let endpoint = chat_endpoint(&base_url)?;
     let origin = normalized_origin(&base_url)?;
     validate_model(&model)?;
     validate_messages(&messages)?;
+
+    // Clamp the per-request timeout to a sane range; omitted → the transport
+    // default (DEFAULT_TIMEOUT_MS) still applies, so Vocabulary is unchanged.
+    let timeout_ms = timeout_ms
+        .map(|ms| ms.clamp(MIN_TIMEOUT_MS, MAX_TIMEOUT_MS))
+        .unwrap_or(DEFAULT_TIMEOUT_MS);
 
     let key = load_key(state, &origin)?
         .ok_or_else(|| "No API key is configured for this endpoint".to_string())?;
@@ -324,6 +359,7 @@ async fn run_chat(
     let task = tokio::spawn(async move {
         let response = client
             .post(endpoint)
+            .timeout(Duration::from_millis(timeout_ms))
             .bearer_auth(key)
             .json(&body)
             .send()
@@ -433,6 +469,7 @@ pub async fn ai_chat(
     json_mode: Option<bool>,
     max_tokens: Option<u32>,
     request_id: Option<String>,
+    timeout_ms: Option<u64>,
 ) -> Result<AiChatResult, String> {
     run_chat(
         &state,
@@ -443,6 +480,7 @@ pub async fn ai_chat(
         json_mode,
         max_tokens,
         request_id,
+        timeout_ms,
     )
     .await
 }
@@ -465,6 +503,7 @@ pub async fn ai_test_connection(
         Some(0.0),
         Some(false),
         Some(8),
+        None,
         None,
     )
     .await
@@ -575,5 +614,53 @@ mod tests {
         assert!(extract_assistant_text(r#"{"choices":[]}"#, "m").is_err());
         assert!(extract_assistant_text(r#"{"choices":[{"message":{"content":"  "}}]}"#, "m").is_err());
         assert!(extract_assistant_text("not json", "m").is_err());
+    }
+
+    #[test]
+    fn maps_finish_reason_stop() {
+        let body = r#"{"choices":[{"finish_reason":"stop","message":{"content":"done"}}]}"#;
+        let result = extract_assistant_text(body, "m").unwrap();
+        assert_eq!(result.finish_reason.as_deref(), Some("stop"));
+    }
+
+    #[test]
+    fn maps_finish_reason_length() {
+        let body = r#"{"choices":[{"finish_reason":"length","message":{"content":"partial"}}]}"#;
+        let result = extract_assistant_text(body, "m").unwrap();
+        assert_eq!(result.finish_reason.as_deref(), Some("length"));
+    }
+
+    #[test]
+    fn missing_finish_reason_is_none() {
+        let body = r#"{"choices":[{"message":{"content":"no finish"}}]}"#;
+        let result = extract_assistant_text(body, "m").unwrap();
+        assert_eq!(result.finish_reason, None);
+    }
+
+    #[test]
+    fn unknown_finish_reason_maps_to_other() {
+        let body = r#"{"choices":[{"finish_reason":"content_filter","message":{"content":"x"}}]}"#;
+        let result = extract_assistant_text(body, "m").unwrap();
+        assert_eq!(result.finish_reason.as_deref(), Some("other"));
+    }
+
+    #[test]
+    fn rejects_input_limit_violations_explicitly() {
+        let too_many: Vec<AiMessage> = (0..MAX_MESSAGES + 1)
+            .map(|i| AiMessage {
+                role: "user".to_string(),
+                content: format!("m{i}"),
+            })
+            .collect();
+        assert_eq!(validate_messages(&too_many).unwrap_err(), "Too many messages");
+
+        let too_big = vec![AiMessage {
+            role: "user".to_string(),
+            content: "x".repeat(MAX_MESSAGE_BYTES + 1),
+        }];
+        assert_eq!(
+            validate_messages(&too_big).unwrap_err(),
+            "Message payload is too large"
+        );
     }
 }

@@ -5,6 +5,7 @@ import { AnnotationList } from "./AnnotationList";
 import { AnnotationInspector } from "./AnnotationInspector";
 import { VocabularyPanel } from "./VocabularyPanel";
 import { NotesPanel } from "./NotesPanel";
+import { TutorPanel } from "./TutorPanel";
 
 export type RightTab = "annotations" | "notes" | "vocabulary" | "ai";
 
@@ -56,6 +57,8 @@ export function RightSidebar({
         />
       ) : tab === "vocabulary" ? (
         <VocabularyPanel onNavigate={onNavigateToAnnotation} />
+      ) : tab === "ai" ? (
+        <TutorPanel />
       ) : (
         <div className="sidebar-content">
           <div className="panel-empty">{current.empty}</div>
@@ -72,25 +75,35 @@ function AnnotationsTab({
 }) {
   const annotations = useAnnotations();
   const selected = annotations.annotations.find((a) => a.id === annotations.selectedId) ?? null;
+  const showInspector = selected != null && selected.type !== "vocabulary";
 
   return (
     <div className="annotations-panel">
-      {annotations.loading && annotations.annotations.length === 0 ? (
-        <div className="panel-empty">Loading annotations…</div>
-      ) : (
-        <AnnotationList
-          annotations={listableAnnotations(annotations.annotations)}
-          selectedId={annotations.selectedId}
-          onNavigate={onNavigateToAnnotation}
-        />
-      )}
-      {selected && selected.type !== "vocabulary" ? (
-        <AnnotationInspector
-          annotation={selected}
-          onUpdate={(patch) => annotations.updateAnnotation(selected.id, patch)}
-          onDelete={() => annotations.deleteAnnotation(selected.id)}
-          onFlush={() => annotations.flushPending()}
-        />
+      <div
+        className={
+          "sidebar-list-region annotations-list-region" + (showInspector ? " constrained" : "")
+        }
+      >
+        {annotations.loading && annotations.annotations.length === 0 ? (
+          <div className="panel-empty">Loading annotations…</div>
+        ) : (
+          <AnnotationList
+            annotations={listableAnnotations(annotations.annotations)}
+            selectedId={annotations.selectedId}
+            onNavigate={onNavigateToAnnotation}
+          />
+        )}
+      </div>
+      {showInspector ? (
+        <>
+          <div className="sidebar-divider" role="separator" />
+          <AnnotationInspector
+            annotation={selected}
+            onUpdate={(patch) => annotations.updateAnnotation(selected.id, patch)}
+            onDelete={() => annotations.deleteAnnotation(selected.id)}
+            onFlush={() => annotations.flushPending()}
+          />
+        </>
       ) : null}
     </div>
   );

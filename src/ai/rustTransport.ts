@@ -25,6 +25,7 @@ export const tauriAiTransport: AiTransport = {
       jsonMode: request.jsonMode ?? false,
       maxTokens: request.maxTokens ?? null,
       requestId: request.requestId ?? null,
+      timeoutMs: request.timeoutMs ?? null,
     });
   },
   async testConnection(baseUrl, model) {

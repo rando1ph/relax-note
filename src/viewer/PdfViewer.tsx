@@ -48,6 +48,7 @@ export const PdfViewer = forwardRef<ViewerHandle, ViewerProps>(function PdfViewe
     onSelectAnnotation,
     onCreateHighlight,
     onCreateVocabulary,
+    onAskAi,
   },
   ref,
 ) {
@@ -74,11 +75,13 @@ export const PdfViewer = forwardRef<ViewerHandle, ViewerProps>(function PdfViewe
   const onSelectAnnotationRef = useRef(onSelectAnnotation);
   const onCreateHighlightRef = useRef(onCreateHighlight);
   const onCreateVocabularyRef = useRef(onCreateVocabulary);
+  const onAskAiRef = useRef(onAskAi);
   annotationsByPageRef.current = annotationsByPage;
   selectedAnnotationIdRef.current = selectedAnnotationId;
   onSelectAnnotationRef.current = onSelectAnnotation;
   onCreateHighlightRef.current = onCreateHighlight;
   onCreateVocabularyRef.current = onCreateVocabulary;
+  onAskAiRef.current = onAskAi;
 
   // Ephemeral selection snapshot + floating action position.
   const [snapshot, setSnapshot] = useState<SelectionSnapshot | null>(null);
@@ -284,6 +287,13 @@ export const PdfViewer = forwardRef<ViewerHandle, ViewerProps>(function PdfViewe
     clearSelection();
   }, [clearSelection]);
 
+  const consumeAskAi = useCallback(() => {
+    const snap = snapshotRef.current;
+    if (!snap) return;
+    onAskAiRef.current(snap);
+    clearSelection();
+  }, [clearSelection]);
+
   const highlightSelection = useCallback((): boolean => {
     const viewer = viewerRef.current;
     const snap =
@@ -382,6 +392,13 @@ export const PdfViewer = forwardRef<ViewerHandle, ViewerProps>(function PdfViewe
             onClick={consumeVocabulary}
           >
             Vocabulary
+          </button>
+          <button
+            type="button"
+            className="relax-floating-action relax-floating-ask"
+            onClick={consumeAskAi}
+          >
+            Ask AI
           </button>
         </div>
       ) : null}

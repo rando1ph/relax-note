@@ -30,6 +30,11 @@ export interface NotesStore {
   selectAnnotationNote: (id: string) => void;
   selectPageNote: (id: string) => void;
   createPageNote: () => Promise<PageNote | null>;
+  createTutorPageNote: (input: {
+    pageNumber: number;
+    title: string | null;
+    note: string;
+  }) => Promise<PageNote | null>;
   updateTitle: (selection: NoteSelection, title: string | null) => void;
   updateNote: (selection: NoteSelection, note: string) => void;
   deletePageNote: (id: string) => void;
@@ -180,6 +185,7 @@ export function NotesProvider({ children }: { children: ReactNode }) {
       note: "",
       createdAt: now,
       updatedAt: now,
+      origin: "user",
     };
 
     try {
@@ -205,6 +211,46 @@ export function NotesProvider({ children }: { children: ReactNode }) {
     setSelection({ kind: "page", id: draft.id });
     return draft;
   }, [ws, setSelection]);
+
+  /**
+   * Creates a page note on a specific page (used by AI Tutor's "Save to Page
+   * Note"). It never changes the current selection or the viewer page, so the
+   * note is anchored to the message's frozen snapshot page, not the live page.
+   */
+  const createTutorPageNote = useCallback(
+    async (input: {
+      pageNumber: number;
+      title: string | null;
+      note: string;
+    }): Promise<PageNote | null> => {
+      const docId = currentDocRef.current;
+      if (!docId) return null;
+
+      const now = Date.now();
+      const pageNote: PageNote = {
+        id: crypto.randomUUID(),
+        documentId: docId,
+        pageNumber: Math.max(1, Math.round(input.pageNumber)),
+        title: input.title,
+        note: input.note,
+        createdAt: now,
+        updatedAt: now,
+        origin: "ai_tutor",
+      };
+
+      try {
+        await dbCreatePageNote(pageNote);
+      } catch (error) {
+        console.warn("Failed to create AI Tutor page note:", error);
+        return null;
+      }
+
+      if (currentDocRef.current !== docId) return null;
+      setPageNotes((prev) => [...prev, pageNote]);
+      return pageNote;
+    },
+    [],
+  );
 
   const updatePageNote = useCallback((id: string, patch: PageNotePatch) => {
     setPageNotes((prev) =>
@@ -264,6 +310,7 @@ export function NotesProvider({ children }: { children: ReactNode }) {
       selectAnnotationNote,
       selectPageNote,
       createPageNote,
+      createTutorPageNote,
       updateTitle,
       updateNote,
       deletePageNote,
@@ -277,6 +324,7 @@ export function NotesProvider({ children }: { children: ReactNode }) {
       selectAnnotationNote,
       selectPageNote,
       createPageNote,
+      createTutorPageNote,
       updateTitle,
       updateNote,
       deletePageNote,

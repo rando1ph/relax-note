@@ -11,12 +11,23 @@ export interface AiChatRequest {
   jsonMode?: boolean;
   maxTokens?: number;
   requestId?: string;
+  /** Optional per-request timeout (ms). Omitted → the transport default applies. */
+  timeoutMs?: number;
 }
 
 export interface AiChatResult {
   content: string;
   model: string;
+  /**
+   * Normalized OpenAI-compatible `choices[0].finish_reason`. Optional so a
+   * provider that omits it still yields a valid result. `null`/undefined means
+   * unknown.
+   */
+  finishReason?: AiFinishReason | null;
 }
+
+/** Normalized finish reasons surfaced by the transport. */
+export type AiFinishReason = "stop" | "length" | "other";
 
 /**
  * The small provider abstraction Vocabulary depends on. The implementation

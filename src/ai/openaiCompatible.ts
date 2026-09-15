@@ -29,6 +29,7 @@ export function createOpenAiCompatibleProvider(
         jsonMode: request.jsonMode ?? config.jsonMode ?? false,
         maxTokens: request.maxTokens ?? config.maxTokens,
         requestId: request.requestId,
+        timeoutMs: request.timeoutMs,
       });
     },
   };

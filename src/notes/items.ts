@@ -46,6 +46,7 @@ function toAnnotationItem(annotation: Annotation): NoteListItem {
     note: annotation.note,
     sourceText: annotation.sourceText,
     color: annotation.color,
+    origin: null,
     createdAt: annotation.createdAt,
     updatedAt: annotation.updatedAt,
   };
@@ -62,6 +63,7 @@ function toPageItem(pageNote: PageNote): NoteListItem {
     note: pageNote.note,
     sourceText: null,
     color: null,
+    origin: pageNote.origin,
     createdAt: pageNote.createdAt,
     updatedAt: pageNote.updatedAt,
   };

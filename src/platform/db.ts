@@ -381,6 +381,7 @@ interface PageNoteRow {
   note: string;
   created_at: number;
   updated_at: number;
+  origin: string | null;
 }
 
 function rowToPageNote(row: PageNoteRow): PageNote {
@@ -392,6 +393,7 @@ function rowToPageNote(row: PageNoteRow): PageNote {
     note: row.note,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    origin: row.origin === "ai_tutor" ? "ai_tutor" : "user",
   };
 }
 
@@ -412,7 +414,7 @@ export async function loadPageNotes(documentId: string): Promise<PageNote[]> {
       .catch(() => undefined);
 
     const rows = await db.select<PageNoteRow[]>(
-      `SELECT id, document_id, page_number, title, note, created_at, updated_at
+      `SELECT id, document_id, page_number, title, note, created_at, updated_at, origin
        FROM page_notes
        WHERE document_id = $1
        ORDER BY page_number ASC, created_at ASC, id ASC`,
@@ -429,8 +431,8 @@ export async function loadPageNotes(documentId: string): Promise<PageNote[]> {
 export async function createPageNote(input: PageNote): Promise<void> {
   const db = await getDb();
   await db.execute(
-    `INSERT INTO page_notes (id, document_id, page_number, title, note, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    `INSERT INTO page_notes (id, document_id, page_number, title, note, created_at, updated_at, origin)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
     [
       input.id,
       input.documentId,
@@ -439,6 +441,7 @@ export async function createPageNote(input: PageNote): Promise<void> {
       input.note,
       input.createdAt,
       input.updatedAt,
+      input.origin,
     ],
   );
 }
