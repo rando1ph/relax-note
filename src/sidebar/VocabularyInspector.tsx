@@ -3,7 +3,9 @@ import type { VocabularyItem } from "../vocabulary/types";
 import { vocabularyActionState } from "../vocabulary/actionState";
 import { useAnnotations } from "../state/annotations";
 import { useVocabulary } from "../state/vocabulary";
+import { useTutor } from "../state/tutor";
 import { ColorPalette } from "./ColorPalette";
+import { NoteEditor } from "./NoteEditor";
 
 interface VocabularyInspectorProps {
   item: VocabularyItem;
@@ -20,6 +22,7 @@ function statusLabel(item: VocabularyItem, running: boolean): string | null {
 export function VocabularyInspector({ item, onConfigure }: VocabularyInspectorProps) {
   const annotations = useAnnotations();
   const vocabulary = useVocabulary();
+  const tutor = useTutor();
   const { annotation, local, enrichment } = item;
   const running = vocabulary.isRunning(annotation.id);
   const action = vocabularyActionState(item, running, vocabulary.configured);
@@ -46,13 +49,13 @@ export function VocabularyInspector({ item, onConfigure }: VocabularyInspectorPr
             : "Enriching…";
 
   return (
-    <div className="vocab-inspector-region">
+    <div className="sidebar-inspector-region vocab-inspector-region">
       <div className="vocab-inspector-header">
         <span className="vocab-term">{annotation.sourceText}</span>
         <span className="vocab-page">Page {annotation.segments[0]?.pageNumber ?? 1}</span>
       </div>
 
-      <div className="vocab-inspector-scroll">
+      <div className="sidebar-inspector-scroll vocab-inspector-scroll">
         {statusLabel(item, running) ? (
           <div className="vocab-status">{statusLabel(item, running)}</div>
         ) : null}
@@ -101,18 +104,15 @@ export function VocabularyInspector({ item, onConfigure }: VocabularyInspectorPr
           </div>
         ) : null}
 
-        <label className="inspector-field">
+        <div className="inspector-field">
           <span className="inspector-label">Note</span>
-          <textarea
-            className="inspector-note"
+          <NoteEditor
             value={annotation.note}
             placeholder="Optional note…"
-            onChange={(e) =>
-              annotations.updateAnnotation(annotation.id, { note: e.currentTarget.value })
-            }
-            onBlur={() => annotations.flushPending()}
+            onChange={(note) => annotations.updateAnnotation(annotation.id, { note })}
+            onFlush={() => annotations.flushPending()}
           />
-        </label>
+        </div>
 
         <div className="inspector-field">
           <span className="inspector-label">Color</span>
@@ -132,7 +132,7 @@ export function VocabularyInspector({ item, onConfigure }: VocabularyInspectorPr
         ) : null}
       </div>
 
-      <div className="vocab-action-bar">
+      <div className="sidebar-action-bar vocab-action-bar">
         {confirmingDelete ? (
           <>
             <span className="vocab-confirm-text">Delete this vocabulary?</span>
@@ -163,6 +163,13 @@ export function VocabularyInspector({ item, onConfigure }: VocabularyInspectorPr
               onClick={runPrimaryAction}
             >
               {primaryLabel}
+            </button>
+            <button
+              type="button"
+              className="vocab-action"
+              onClick={() => tutor.askAnnotation(annotation.id)}
+            >
+              Ask AI
             </button>
             <button
               type="button"

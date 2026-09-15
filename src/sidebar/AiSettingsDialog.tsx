@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { saveAiSettings } from "../ai/settings";
 import type { AiSettings } from "../ai/settings";
 import { tauriAiTransport } from "../ai/rustTransport";
-import { useVocabulary } from "../state/vocabulary";
+import { useAiSettings } from "../state/aiSettings";
 
 interface AiSettingsDialogProps {
   onClose: () => void;
@@ -15,8 +15,8 @@ function errorText(error: unknown): string {
 }
 
 export function AiSettingsDialog({ onClose }: AiSettingsDialogProps) {
-  const vocabulary = useVocabulary();
-  const [draft, setDraft] = useState<AiSettings>(vocabulary.settings);
+  const ai = useAiSettings();
+  const [draft, setDraft] = useState<AiSettings>(ai.settings);
   const [apiKey, setApiKey] = useState("");
   const [hasKey, setHasKey] = useState(false);
   const [replacing, setReplacing] = useState(false);
@@ -26,8 +26,8 @@ export function AiSettingsDialog({ onClose }: AiSettingsDialogProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
-    setDraft(vocabulary.settings);
-  }, [vocabulary.settings]);
+    setDraft(ai.settings);
+  }, [ai.settings]);
 
   useEffect(() => {
     void tauriAiTransport
@@ -61,7 +61,7 @@ export function AiSettingsDialog({ onClose }: AiSettingsDialogProps) {
         setApiKey("");
         setReplacing(false);
       }
-      await vocabulary.reloadSettings();
+      await ai.reloadSettings();
       await refreshHasKey(draft.baseUrl);
       setMessage(storeAvailable ? "Saved." : "Saved for this session only.");
     } catch (error) {

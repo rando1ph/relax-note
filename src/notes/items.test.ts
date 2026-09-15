@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Annotation, AnnotationType } from "../annotations/types";
-import type { PageNote } from "./types";
+import type { PageNote, PageNoteOrigin } from "./types";
 import { deriveNoteList, firstUsefulLine, isAnnotationNote, isBlankPageNote } from "./items";
 
 function annotation(
@@ -28,7 +28,7 @@ function pageNote(
   id: string,
   page: number,
   createdAt: number,
-  opts: { title?: string | null; note?: string } = {},
+  opts: { title?: string | null; note?: string; origin?: PageNoteOrigin } = {},
 ): PageNote {
   return {
     id,
@@ -38,6 +38,7 @@ function pageNote(
     note: opts.note ?? "",
     createdAt,
     updatedAt: createdAt,
+    origin: opts.origin ?? "user",
   };
 }
 
@@ -148,5 +149,18 @@ describe("deriveNoteList", () => {
     expect(ann?.color).toBe("#FFD400");
     expect(page?.sourceText).toBeNull();
     expect(page?.color).toBeNull();
+  });
+
+  it("carries page-note origin and leaves annotation origin null", () => {
+    const items = deriveNoteList(
+      [annotation("a1", 1, 0, 0, { note: "x" })],
+      [
+        pageNote("p1", 1, 0, { note: "user note" }),
+        pageNote("p2", 1, 1, { note: "ai note", origin: "ai_tutor" }),
+      ],
+    );
+    expect(items.find((i) => i.selection.id === "p1")?.origin).toBe("user");
+    expect(items.find((i) => i.selection.id === "p2")?.origin).toBe("ai_tutor");
+    expect(items.find((i) => i.selection.id === "a1")?.origin).toBeNull();
   });
 });

@@ -28,7 +28,12 @@ export function NotesList({ items, selectedKey, onSelect }: NotesListProps) {
                 <span className="annotation-color" style={{ background: item.color }} />
               ) : null}
               <span className="notes-item-body">
-                <span className="notes-item-primary">{primary}</span>
+                <span className="notes-item-primary">
+                  {primary}
+                  {item.origin === "ai_tutor" ? (
+                    <span className="notes-ai-badge">AI</span>
+                  ) : null}
+                </span>
                 {sourcePreview ? (
                   <span className="notes-item-source">{sourcePreview}</span>
                 ) : null}

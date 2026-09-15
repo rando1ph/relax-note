@@ -54,4 +54,32 @@ describe("createOpenAiCompatibleProvider", () => {
     expect(calls[0].request.model).toBe("model-b");
     expect(calls[0].request.jsonMode).toBe(false);
   });
+
+  it("passes the normalized finish reason through unchanged", async () => {
+    const transport: AiTransport = {
+      async chat() {
+        return { content: "partial", model: "m", finishReason: "length" };
+      },
+      async testConnection() {},
+      async setApiKey() {},
+      async clearApiKey() {},
+      async hasApiKey() {
+        return true;
+      },
+      async credentialStoreAvailable() {
+        return true;
+      },
+      async cancel() {},
+    };
+    const provider = createOpenAiCompatibleProvider({
+      baseUrl: "https://host/v1",
+      model: "m",
+      transport,
+    });
+    const result = await provider.chat({
+      model: "m",
+      messages: [{ role: "user", content: "hi" }],
+    });
+    expect(result.finishReason).toBe("length");
+  });
 });

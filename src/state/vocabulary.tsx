@@ -38,10 +38,11 @@ import { createRequestGate } from "../vocabulary/requestGate";
 import { applyEnrichmentEvent } from "../vocabulary/enrichmentMachine";
 import { createOpenAiCompatibleProvider } from "../ai/openaiCompatible";
 import { tauriAiTransport } from "../ai/rustTransport";
-import { isAiConfigured, loadAiSettings, DEFAULT_AI_SETTINGS } from "../ai/settings";
+import { isAiConfigured } from "../ai/settings";
 import type { AiSettings } from "../ai/settings";
 import { debugAi, endpointHost } from "../ai/debug";
 import { getOutlineCached, headingForPage } from "../pdf/outline";
+import { useAiSettings } from "./aiSettings";
 
 export interface VocabularyStore {
   items: VocabularyItem[];
@@ -71,10 +72,10 @@ export function VocabularyProvider({ children }: { children: ReactNode }) {
   const ws = useWorkspace();
   const annotations = useAnnotations();
   const documentId = ws.activeTab?.id ?? null;
+  const { settings, configured, reloadSettings } = useAiSettings();
 
   const [metadata, setMetadata] = useState<Map<string, LoadedVocabulary>>(new Map());
   const [loading, setLoading] = useState(false);
-  const [settings, setSettings] = useState<AiSettings>(DEFAULT_AI_SETTINGS);
   const [running, setRunning] = useState<Record<string, string>>({});
 
   const annotationsRef = useRef(annotations.annotations);
@@ -90,16 +91,6 @@ export function VocabularyProvider({ children }: { children: ReactNode }) {
   const inFlightRef = useRef<Map<string, string>>(new Map());
   const fieldTimersRef = useRef<Map<string, number>>(new Map());
   const pendingFieldsRef = useRef<Map<string, Partial<VocabularyFields>>>(new Map());
-
-  // ---- settings ----------------------------------------------------------
-  const reloadSettings = useCallback(async () => {
-    const loaded = await loadAiSettings();
-    setSettings(loaded);
-  }, []);
-
-  useEffect(() => {
-    void reloadSettings();
-  }, [reloadSettings]);
 
   // ---- load / document switch -------------------------------------------
   useEffect(() => {
@@ -473,7 +464,7 @@ export function VocabularyProvider({ children }: { children: ReactNode }) {
       items,
       loading,
       settings,
-      configured: isAiConfigured(settings),
+      configured,
       isRunning,
       createVocabulary,
       enrich: (id) => void enrich(id),
@@ -488,6 +479,7 @@ export function VocabularyProvider({ children }: { children: ReactNode }) {
       items,
       loading,
       settings,
+      configured,
       isRunning,
       createVocabulary,
       enrich,

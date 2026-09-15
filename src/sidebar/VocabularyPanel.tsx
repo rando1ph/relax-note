@@ -69,7 +69,7 @@ export function VocabularyPanel({ onNavigate }: VocabularyPanelProps) {
         </button>
       ) : null}
 
-      <div className={"vocab-list-region" + (selected ? " constrained" : "")}>
+      <div className={"sidebar-list-region vocab-list-region" + (selected ? " constrained" : "")}>
         {vocabulary.loading && vocabulary.items.length === 0 ? (
           <div className="panel-empty">Loading vocabulary…</div>
         ) : filtered.length === 0 ? (
@@ -111,7 +111,7 @@ export function VocabularyPanel({ onNavigate }: VocabularyPanelProps) {
 
       {selected ? (
         <>
-          <div className="vocab-divider" role="separator" />
+          <div className="sidebar-divider vocab-divider" role="separator" />
           <VocabularyInspector item={selected} onConfigure={() => setSettingsOpen(true)} />
         </>
       ) : null}

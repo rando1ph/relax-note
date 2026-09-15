@@ -150,6 +150,12 @@ pub fn run() {
             CREATE INDEX IF NOT EXISTS idx_page_notes_document_page ON page_notes(document_id, page_number);",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 13,
+            description: "add_page_notes_origin",
+            sql: "ALTER TABLE page_notes ADD COLUMN origin TEXT NOT NULL DEFAULT 'user';",
+            kind: MigrationKind::Up,
+        },
     ];
 
     let ai_state = ai::AiState::new().expect("failed to initialize AI transport");
